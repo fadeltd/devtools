@@ -1,0 +1,50 @@
+{
+  "name": "devtools",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "packageManager": "pnpm@11.22.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && pnpm seo",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint",
+    "deploy": "pnpm build && wrangler deploy",
+    "seo": "vite-node scripts/seo.ts"
+  },
+  "dependencies": {
+    "@codemirror/merge": "6.12.2",
+    "@codemirror/state": "6.7.5",
+    "@codemirror/view": "6.43.12",
+    "change-case": "5.4.4",
+    "clsx": "2.1.1",
+    "cmdk": "1.1.1",
+    "codemirror": "6.0.2",
+    "idb-keyval": "6.3.0",
+    "jsonc-parser": "3.3.1",
+    "lucide-react": "1.47.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-router": "8.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "24.9.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "fast-check": "4.10.2",
+    "oxlint": "1.85.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vite-node": "^6.0.0",
+    "vitest": "5.0.1",
+    "wrangler": "4.136.1"
+  }
+}

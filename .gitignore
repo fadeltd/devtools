@@ -1,0 +1,11 @@
+node_modules/
+dist/
+
+# Stitch design exports: ~3 MB of PNG mockups plus generated HTML. Reference
+# material, not source. DESIGN.md's rules are mirrored in CLAUDE.md and
+# implemented in src/styles/global.css.
+design/
+
+.wrangler/
+*.local
+.DS_Store

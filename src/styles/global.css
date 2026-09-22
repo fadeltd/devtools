@@ -1,0 +1,179 @@
+@import 'tailwindcss';
+
+/* Self-hosted variable subsets (latin only, ~79 KB total).
+   Deliberately NOT Google Fonts: a webfont request to a third party on every
+   page load would contradict the one promise this site makes, which is that
+   nothing about your session leaves the browser. It also keeps the CSP at
+   font-src 'self'. */
+@font-face {
+  font-family: 'Inter var';
+  src: url('/fonts/inter-var.woff2') format('woff2-variations');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono var';
+  src: url('/fonts/jetbrains-mono-var.woff2') format('woff2-variations');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  /* Surfaces: flat tonal steps, no shadows anywhere in this system. */
+  --color-bg: #121316;
+  --color-surface: #1c1d22;
+  --color-surface-2: #24252c;
+  --color-border: #2d2e37;
+  --color-border-strong: #3e404d;
+
+  /* Text */
+  --color-fg: #ededed;
+  --color-muted: #8b8d98;
+  --color-faint: #52545d;
+
+  /* Exactly one accent, reserved for focus, active state and primary action. */
+  --color-accent: #38bdf8;
+  --color-accent-dim: #004965;
+
+  /* Semantic, for diff and validation only. */
+  --color-add: #22c55e;
+  --color-add-bg: rgb(34 197 94 / 0.12);
+  --color-del: #ef4444;
+  --color-del-bg: rgb(239 68 68 / 0.12);
+  --color-warn: #f59e0b;
+  --color-warn-bg: rgb(245 158 11 / 0.12);
+
+  /* Gutter background for line numbers in diff and code views. */
+  --color-gutter: #16171b;
+
+  --font-sans: 'Inter var', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono var', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* Radius ceiling is deliberately low: 4px for controls, 6px for overlays,
+     0px for data grids and split panes so they align to the hairline grid. */
+  --radius-control: 4px;
+  --radius-panel: 6px;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-bg);
+  padding-bottom: env(safe-area-inset-bottom);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 18px;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+/* Tabular figures everywhere monospace is used, so columns of counts, offsets
+   and line numbers line up vertically instead of jittering. */
+.font-mono,
+code,
+kbd,
+pre,
+textarea,
+input,
+select {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Inputs must be >=16px on mobile or iOS Safari auto-zooms on focus and leaves
+   the layout scrolled sideways. Desktop gets the 13px density target back. */
+input,
+textarea,
+select {
+  font-size: 16px;
+}
+
+@media (min-width: 48rem) {
+  input,
+  textarea,
+  select {
+    font-size: 13px;
+  }
+}
+
+/* Crisp 2px ring, never a glow or spread. */
+*:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 1px;
+}
+
+::selection {
+  background: var(--color-accent-dim);
+  color: var(--color-fg);
+}
+
+@utility panel {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+}
+
+@utility scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+
+/* Static content written into #root by scripts/seo.ts for crawlers and cold
+   loads. React clears the container on mount, so this shows only briefly --
+   style it so that moment looks intentional rather than broken. Deliberately
+   not display:none, which would devalue it as hidden content. */
+.prerender {
+  max-width: 42rem;
+  padding: 1.5rem;
+  color: var(--color-muted);
+  font-size: 13px;
+}
+
+.prerender h1 {
+  color: var(--color-fg);
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-bottom: 0.5rem;
+}
+
+.prerender p {
+  margin-bottom: 0.5rem;
+}
+
+/* CodeMirror MergeView structural sizing.
+   The package styles .cm-mergeViewEditor with flex-grow, but nothing stretches
+   the outer container, so without these the two panes collapse toward their
+   content width and leave dead space on the right. Kept here rather than in
+   EditorView.theme because these nodes live outside the editor itself. */
+.cm-mergeView {
+  width: 100%;
+  height: 100%;
+}
+
+.cm-mergeViewEditors {
+  height: 100%;
+}
+
+.cm-mergeViewEditor {
+  min-width: 0;
+}
+
+.cm-mergeViewEditor:first-child {
+  border-right: 1px solid var(--color-border);
+}
+
+.cm-mergeView .cm-editor {
+  height: 100%;
+}

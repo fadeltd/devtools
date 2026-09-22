@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "devtools",
+  "compatibility_date": "2026-09-22",
+  "assets": {
+    "directory": "./dist/",
+    // Serves /index.html with 200 for unmatched paths, so /diff survives a hard
+    // refresh. Real files still win, which is what makes the prerendered
+    // per-tool HTML in scripts/prerender.ts work.
+    "not_found_handling": "single-page-application",
+    "html_handling": "drop-trailing-slash"
+  },
+  "routes": [{ "pattern": "devtools.fadeltd.dev", "custom_domain": true }],
+  "observability": { "enabled": true }
+}

@@ -1,0 +1,16 @@
+# Cloudflare applies EVERY matching rule and concatenates the values, so an
+# overlapping Cache-Control here would emit both and the browser would honour
+# the first. Hence /* deliberately sets only security headers: the platform
+# default for assets it does not match is already
+# "public, max-age=0, must-revalidate", which is what we want for HTML.
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'
+
+# Content-hashed by the bundler, so these are safe to cache forever.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/fonts/*
+  Cache-Control: public, max-age=31536000, immutable
