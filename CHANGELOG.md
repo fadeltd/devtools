@@ -7,6 +7,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] — 2026-09-24
+
 ### Added
 - **ID Generator** — prefixed identifiers in the Stripe style
   (`sk_live_` plus 24 random characters): set a prefix, separator, length,
