@@ -1,0 +1,73 @@
+name: Deploy
+
+# Deploys a TAG, never a branch: whatever shipped is always reachable by
+# version. Normally started by the Release workflow after it tags a merge to
+# main; a hand-pushed tag works too.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to deploy, e.g. v0.2.0'
+        required: true
+        type: string
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Build and deploy to Cloudflare
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://devtools.fadeltd.dev
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Deploy exactly the tagged commit, whichever way this was started.
+          ref: ${{ inputs.tag || github.ref }}
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Cloudflare would happily serve a broken build, so nothing ships that
+      # has not passed the same gate CI applies to pull requests.
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Deploy
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: deploy
+
+      - name: Smoke check the live site
+        run: |
+          sleep 10
+          for path in / /id-gen /json /diff /base64 /list /text-stats; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "https://devtools.fadeltd.dev${path}")
+            echo "${path} -> ${code}"
+            [ "${code}" = "200" ] || { echo "::error::${path} returned ${code}"; exit 1; }
+          done

@@ -1,4 +1,4 @@
-import { Binary, Braces, GitCompare, ListOrdered, Sigma } from 'lucide-react'
+import { Binary, Braces, GitCompare, KeyRound, ListOrdered, Sigma } from 'lucide-react'
 import type { ToolDef } from './types'
 
 /**
@@ -83,6 +83,36 @@ const RAW_TOOLS = [
     load: () => import('@/tools/list/ListTool'),
     store: { kind: 'local' },
     stateVersion: 1,
+    status: 'beta',
+  },
+  {
+    slug: 'id-gen',
+    title: 'ID Generator',
+    blurb:
+      'Generate prefixed ids in the Stripe style, API tokens and secure passwords.',
+    keywords: [
+      'id generator',
+      'api key',
+      'api token',
+      'secret key',
+      'stripe',
+      'sk_live',
+      'prefix',
+      'random string',
+      'alphanumeric generator',
+      'password generator',
+      'secure password',
+      'nanoid',
+      'token',
+      'entropy',
+    ],
+    category: 'generate',
+    icon: KeyRound,
+    // Only the OPTIONS are persisted; generated values live in component state
+    // and are never written to disk.
+    store: { kind: 'local' },
+    stateVersion: 1,
+    load: () => import('@/tools/id-gen/IdGenTool'),
     status: 'beta',
   },
   {

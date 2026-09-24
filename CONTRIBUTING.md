@@ -70,6 +70,49 @@ Small, focused PRs. If you are planning something large, open an issue first —
 the project has a deliberate list of things it will not do, and it would be a
 shame for you to build one of them.
 
+## Releases
+
+**You never pick a version number, and you never write a release date.**
+
+While you work, add your entry under `## [Unreleased]` in `CHANGELOG.md`, using
+a Keep a Changelog heading:
+
+```markdown
+## [Unreleased]
+
+### Added
+- The thing you added
+```
+
+Merging to `main` then does the rest, automatically:
+
+1. Reads `[Unreleased]` and derives the semver bump from its headings —
+   `### Breaking` → major, `### Added` → minor, anything else
+   (`Fixed`, `Changed`, `Security`, `Removed`) → patch.
+2. Rewrites `CHANGELOG.md`, moving `[Unreleased]` into a dated
+   `## [x.y.z]` section and leaving a fresh empty `[Unreleased]` behind.
+3. Bumps `version` in `package.json`, commits that back to `main`, and pushes
+   the tag `vx.y.z`.
+4. **The tag** triggers the deploy to Cloudflare. Merging alone never deploys.
+
+An empty `[Unreleased]` releases nothing, so a docs-only or refactor merge ships
+nothing. That is deliberate: merging and releasing are separate decisions.
+
+Two notes for anyone editing the workflows:
+
+- `### Removed` is deliberately a *patch*, not a major. Inferring a major bump
+  from a tidy-up would let a cleanup silently become a 1.0. Major requires an
+  explicit `### Breaking` heading.
+- Below 1.0, a breaking change bumps the minor (`0.4.2` → `0.5.0`), per semver
+  convention for pre-stable projects.
+
+The bump logic lives in `scripts/changelog.ts` and is unit-tested, because a
+mistake there silently ships the wrong version. Preview what a merge would do:
+
+```bash
+pnpm exec vite-node scripts/release.ts --dry-run
+```
+
 ## Licence
 
 By contributing you agree your contributions are licensed under the MIT
