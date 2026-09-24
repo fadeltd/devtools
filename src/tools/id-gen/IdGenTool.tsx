@@ -13,6 +13,7 @@ import { copyText } from '@/lib/util/clipboard'
 import { formatCount } from '@/lib/util/bytes'
 import {
   DEFAULT_OPTIONS,
+  matchingPreset,
   MAX_COUNT,
   MAX_LENGTH,
   PRESETS,
@@ -99,14 +100,14 @@ export default function IdGenTool() {
       actions={
         <>
           <Select
-            value=""
+            value={matchingPreset(state) ?? ''}
             onChange={(e) => {
               const preset = PRESETS.find((p) => p.name === e.target.value)
               if (preset) applyOptions((p) => ({ ...p, ...preset.options }))
             }}
             title="Load a preset"
           >
-            <option value="">Preset…</option>
+            <option value="">Custom</option>
             {PRESETS.map((p) => (
               <option key={p.name} value={p.name} title={p.description}>
                 {p.name}
@@ -249,10 +250,20 @@ export default function IdGenTool() {
             </p>
           </div>
 
-          <p className="mt-3 flex items-start gap-1.5 text-[11px] leading-snug text-faint">
-            <ShieldCheck size={13} className="mt-px shrink-0 text-add" aria-hidden />
-            Generated with <code className="font-mono">crypto.getRandomValues</code> and unbiased
-            sampling. Your settings are saved; the generated values never are.
+          {/* Deliberately not a flex container: flex would make each inline
+              child -- both text runs and the <code> -- a separate flex item,
+              which is what made this overlap. The icon is inline instead. */}
+          <p className="mt-3 text-[11px] leading-[1.6] text-faint">
+            <ShieldCheck
+              size={12}
+              className="mr-1 inline-block shrink-0 align-[-1px] text-add"
+              aria-hidden
+            />
+            Generated with{' '}
+            <code className="rounded-[3px] bg-surface-2 px-1 py-px font-mono text-[10px] text-muted">
+              crypto.getRandomValues
+            </code>{' '}
+            and unbiased sampling. Your settings are saved; the generated values never are.
           </p>
         </div>
 

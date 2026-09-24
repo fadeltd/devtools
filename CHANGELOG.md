@@ -7,7 +7,22 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+- The security note in the ID generator rendered as overlapping fragments. It
+  was a paragraph with `display: flex`, which makes every inline child — both
+  text runs and the inline `<code>` — a separate flex item laid out in a row.
+- Dropdowns had cramped padding and the native arrow overlapped the border at
+  our control height. The native arrow is now suppressed and replaced with a
+  chevron drawn inside the padding box, with room reserved for it.
+- The preset dropdown always displayed "Preset…" regardless of the settings in
+  use. It now shows whichever preset the current options match, derived from
+  those options rather than stored, so it survives a reload and falls back to
+  "Custom" as soon as any field changes.
+
+### Changed
+- The sidebar collapse control moved from the bottom of the tool list to the
+  top, where it is visible without scrolling, and the collapse now animates.
+  Both respect `prefers-reduced-motion`.
 
 ## [0.2.2] — 2026-09-24
 

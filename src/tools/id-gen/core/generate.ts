@@ -217,3 +217,18 @@ export const PRESETS: readonly Preset[] = [
     options: { prefix: '', separator: '', length: 10, alphabet: 'base58', excludeAmbiguous: true },
   },
 ]
+
+/**
+ * Name the preset whose settings the current options match, if any.
+ *
+ * Derived rather than stored: the dropdown then shows the right thing after a
+ * reload, and falls back to "Custom" the moment any field is changed, with no
+ * state to keep in sync.
+ */
+export function matchingPreset(options: IdOptions): string | null {
+  for (const preset of PRESETS) {
+    const keys = Object.keys(preset.options) as (keyof IdOptions)[]
+    if (keys.every((k) => options[k] === preset.options[k])) return preset.name
+  }
+  return null
+}

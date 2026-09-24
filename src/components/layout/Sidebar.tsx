@@ -54,7 +54,11 @@ function ToolLinks({
                 }
               >
                 <tool.icon size={15} aria-hidden className="shrink-0" />
-                {!collapsed && <span className="truncate">{tool.title}</span>}
+                {!collapsed && (
+                  <span className="truncate opacity-0 animate-[fadeIn_150ms_ease-out_forwards]">
+                    {tool.title}
+                  </span>
+                )}
               </NavLink>
             ))}
           </div>
@@ -70,35 +74,40 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        'hidden shrink-0 flex-col border-r border-border bg-surface md:flex',
+        'hidden shrink-0 flex-col overflow-hidden border-r border-border bg-surface md:flex',
+        // Animating width needs overflow-hidden above, or the labels spill
+        // across the main pane mid-transition. Respects reduced-motion.
+        'transition-[width] duration-200 ease-out motion-reduce:transition-none',
         sidebarCollapsed ? 'w-[52px]' : 'w-[220px]',
       )}
     >
+      {/* At the top, where it is actually visible, and aligned with the header
+          row rather than buried under the tool list. */}
+      <div
+        className={cn(
+          'flex h-9 shrink-0 items-center border-b border-border',
+          sidebarCollapsed ? 'justify-center px-0' : 'justify-end px-2',
+        )}
+      >
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!sidebarCollapsed}
+          className="flex size-7 items-center justify-center rounded-[4px] text-faint hover:bg-surface-2 hover:text-fg"
+        >
+          {sidebarCollapsed ? (
+            <PanelLeftOpen size={15} aria-hidden />
+          ) : (
+            <PanelLeftClose size={15} aria-hidden />
+          )}
+        </button>
+      </div>
+
       <div className="min-h-0 flex-1 overflow-y-auto scroll-thin">
         <ToolLinks collapsed={sidebarCollapsed} />
       </div>
-
-      <button
-        type="button"
-        onClick={toggleSidebar}
-        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        aria-expanded={!sidebarCollapsed}
-        className={cn(
-          'flex min-h-9 shrink-0 items-center gap-2 border-t border-border px-3 text-[12px]',
-          'text-faint hover:bg-surface-2 hover:text-fg',
-          sidebarCollapsed && 'justify-center px-0',
-        )}
-      >
-        {sidebarCollapsed ? (
-          <PanelLeftOpen size={15} aria-hidden />
-        ) : (
-          <>
-            <PanelLeftClose size={15} aria-hidden />
-            <span>Collapse</span>
-          </>
-        )}
-      </button>
     </aside>
   )
 }
