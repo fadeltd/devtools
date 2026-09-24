@@ -50,9 +50,8 @@ constraints that shape every decision here.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE). The bundled fonts in `public/fonts/` are
-third-party works under the SIL Open Font License 1.1; their notices ship
-alongside them.
+MIT — see [LICENSE](LICENSE). The bundled fonts are third-party works under
+the SIL Open Font License 1.1; see [NOTICE](NOTICE).
 
 ## Stack
 
