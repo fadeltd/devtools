@@ -7,7 +7,14 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+- The Release workflow checked out the commit that triggered it rather than the
+  branch tip, so any re-run built on a stale base and its push was rejected as
+  a non-fast-forward. It now checks out `main`, and each push is guarded so a
+  partially-completed attempt resumes instead of blocking every retry.
+- `.env` is now ignored. Nothing here needs one — the app has no backend and no
+  runtime secrets — but an untracked `.env` is exactly what gets committed by
+  accident on a public repository.
 
 ## [0.2.0] — 2026-09-24
 
