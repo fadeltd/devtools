@@ -7,6 +7,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.3] — 2026-09-24
+
 ### Fixed
 - The security note in the ID generator rendered as overlapping fragments. It
   was a paragraph with `display: flex`, which makes every inline child — both
