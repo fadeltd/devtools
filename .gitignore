@@ -14,3 +14,10 @@ design/
 .wrangler/
 *.local
 .DS_Store
+
+# Local environment files. Nothing in this project needs them at runtime --
+# the app has no backend and no secrets -- but an untracked .env is exactly the
+# kind of thing that gets committed by accident on a public repo.
+.env
+.env.*
+!.env.example
