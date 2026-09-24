@@ -1,5 +1,6 @@
 /**
- * Unbiased, crypto-backed Fisher-Yates.
+ * Unbiased randomness primitives, shared by the list shuffler and the ID
+ * generator.
  *
  * Two bugs that almost every implementation ships, both fixed here:
  *

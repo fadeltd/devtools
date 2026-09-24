@@ -1,0 +1,88 @@
+name: Release
+
+# Merging to main does not deploy directly. It derives the next version from
+# the [Unreleased] section of CHANGELOG.md, rewrites the changelog, commits
+# that back to main, and pushes a tag. The TAG is what deploys.
+#
+# A merge with an empty [Unreleased] releases nothing, so merging and releasing
+# stay separate decisions.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  release:
+    name: Cut a release from the changelog
+    runs-on: ubuntu-latest
+    # Never react to our own release commit.
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    env:
+      # A tag pushed with GITHUB_TOKEN does NOT trigger other workflows, by
+      # design, to prevent recursion. With a PAT in RELEASE_TOKEN the tag
+      # triggers Deploy natively; without one we start Deploy explicitly.
+      HAS_PAT: ${{ secrets.RELEASE_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - id: cut
+        name: Derive the version from CHANGELOG.md
+        run: pnpm exec vite-node scripts/release.ts
+
+      - name: Commit the changelog and tag
+        if: steps.cut.outputs.released == 'true'
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md package.json
+          # [skip ci] so this push cannot re-enter this workflow when a PAT is
+          # in use -- with a PAT, pushes DO trigger workflows.
+          git commit -m "Release ${{ steps.cut.outputs.tag }} [skip ci]"
+          git tag -a "${{ steps.cut.outputs.tag }}" -m "${{ steps.cut.outputs.tag }}"
+          git push origin HEAD:main
+          git push origin "${{ steps.cut.outputs.tag }}"
+
+      - name: Create the GitHub release
+        if: steps.cut.outputs.released == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.cut.outputs.tag }}" \
+            --title "${{ steps.cut.outputs.tag }}" \
+            --notes "${{ steps.cut.outputs.notes }}"
+
+      # Only needed while no PAT is configured; with one, the tag push above
+      # has already started Deploy.
+      - name: Start Deploy (no PAT configured)
+        if: steps.cut.outputs.released == 'true' && env.HAS_PAT != 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "::notice::No RELEASE_TOKEN set, so the tag cannot trigger Deploy. Dispatching it directly."
+          gh workflow run deploy.yml --ref main -f tag="${{ steps.cut.outputs.tag }}"
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.cut.outputs.released }}" = "true" ]; then
+            echo "Released ${{ steps.cut.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No [Unreleased] entries — nothing released." >> "$GITHUB_STEP_SUMMARY"
+          fi

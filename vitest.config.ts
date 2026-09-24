@@ -8,7 +8,7 @@ export default defineConfig({
   test: {
     // core/ is pure: no DOM needed, and node is much faster to boot.
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
     // Transforms dominate the run time otherwise.
     fsModuleCache: true,
   },

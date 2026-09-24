@@ -1,7 +1,7 @@
 import { applyCase } from './casing'
 import { comparatorFor } from './compare'
 import { isBlank, parseLines, withLines } from './lines'
-import { cryptoRandomSource, mulberry32, shuffleInPlace } from './shuffle'
+import { cryptoRandomSource, mulberry32, shuffleInPlace } from '@/lib/random'
 import type { BlankPolicy, LineDoc, LineTest, Op, StepStat } from './types'
 
 function partitionBlanks(lines: string[], policy: BlankPolicy) {

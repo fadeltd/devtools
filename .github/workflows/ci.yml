@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+# Cancel superseded runs on the same ref: only the latest push matters.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # Fails loudly if the lockfile has drifted, which is the point of pnpm here.
+      - run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm exec tsc --noEmit
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      # The entry bundle is what every visitor pays for on first load. If a
+      # heavy dependency escapes a lazy route chunk, this is where we find out
+      # rather than in production.
+      - name: Check entry bundle budget
+        run: |
+          BUDGET=92160
+          ENTRY=$(find dist/assets -name 'index-*.js' -print -quit)
+          SIZE=$(gzip -c "$ENTRY" | wc -c | tr -d ' ')
+          echo "entry: $ENTRY"
+          echo "gzipped: ${SIZE}B   budget: ${BUDGET}B"
+          if [ "$SIZE" -gt "$BUDGET" ]; then
+            echo "::error::Entry bundle ${SIZE}B exceeds the ${BUDGET}B budget."
+            exit 1
+          fi

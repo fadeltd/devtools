@@ -7,7 +7,37 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- **ID Generator** — prefixed identifiers in the Stripe style
+  (`sk_live_` plus 24 random characters): set a prefix, separator, length,
+  alphabet and batch size. Doubles as a password generator via a symbol
+  alphabet and an
+  option to drop confusable glyphs (`0`/`O`, `1`/`l`/`I`).
+  - Live entropy readout with a qualitative strength verdict. Deliberately no
+    "time to crack" figure: that depends entirely on assumed hardware and on
+    whether the value is hashed, so quoting one would be false precision.
+  - Presets for Stripe secret and test keys, object ids, API tokens, hex
+    session ids, passwords and human-readable codes.
+  - Values come from `crypto.getRandomValues` with rejection sampling, never
+    `value % n`, which biases toward the start of the alphabet.
+  - Settings persist; **generated values never do**.
+- Collapsible sidebar, kept as an icon rail with accessible names intact.
+- Link to the GitHub repository in the header.
+- Continuous integration on every pull request, including an entry-bundle size
+  budget so a heavy dependency escaping a lazy chunk fails the build rather
+  than reaching production.
+- Release automation: merging to `main` creates a version tag, and the **tag**
+  is what deploys. A merge that does not change the version in `package.json`
+  releases nothing, so merging and releasing are separate decisions.
+
+### Fixed
+- Focus rings on full-bleed text areas were drawn outside the element and
+  clipped by the surrounding pane, so only the top and right edges were
+  visible. They are now drawn inset.
+
+### Changed
+- Unbiased randomness primitives moved to `src/lib/random.ts`, now shared by
+  the list shuffler and the ID generator.
 
 ## [0.1.0] — 2026-09-24
 
