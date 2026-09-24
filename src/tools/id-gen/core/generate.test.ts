@@ -9,6 +9,7 @@ import {
   PRESETS,
   entropyBits,
   generateIds,
+  matchingPreset,
   resolveAlphabet,
   strength,
   type IdOptions,
@@ -230,5 +231,29 @@ describe('properties', () => {
       expect(Math.abs(n - expected) / expected).toBeLessThan(0.2)
     }
     expect(counts.size).toBe(16)
+  })
+})
+
+describe('matchingPreset', () => {
+  it('names the preset whose settings the options match', () => {
+    const stripe = PRESETS.find((p) => p.name === 'Stripe secret key')!
+    expect(matchingPreset(opts(stripe.options))).toBe('Stripe secret key')
+  })
+
+  it('returns null once any field is changed', () => {
+    const stripe = PRESETS.find((p) => p.name === 'Stripe secret key')!
+    expect(matchingPreset(opts({ ...stripe.options, length: 25 }))).toBeNull()
+  })
+
+  it('identifies every preset from its own options', () => {
+    for (const preset of PRESETS) {
+      expect(matchingPreset(opts(preset.options)), preset.name).toBe(preset.name)
+    }
+  })
+
+  it('ignores fields the preset does not specify', () => {
+    const stripe = PRESETS.find((p) => p.name === 'Stripe secret key')!
+    // count is not part of that preset, so changing it must not unmatch.
+    expect(matchingPreset(opts({ ...stripe.options, count: 99 }))).toBe('Stripe secret key')
   })
 })

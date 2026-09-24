@@ -191,3 +191,21 @@ textarea:focus-visible,
 .cm-mergeView .cm-editor {
   height: 100%;
 }
+
+/* Labels fade in as the sidebar expands, so they do not appear fully formed
+   before the width animation has finished. */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [class*='animate-'] {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
