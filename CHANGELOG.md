@@ -7,6 +7,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.1] — 2026-09-24
+
 ### Fixed
 - The Release workflow checked out the commit that triggered it rather than the
   branch tip, so any re-run built on a stale base and its push was rejected as
