@@ -46,5 +46,12 @@
     "vite-node": "^6.0.0",
     "vitest": "5.0.1",
     "wrangler": "4.136.1"
-  }
+  },
+  "license": "MIT",
+  "description": "Client-only developer utilities. Nothing you paste leaves the browser.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fadeltd/devtools.git"
+  },
+  "homepage": "https://devtools.fadeltd.dev"
 }

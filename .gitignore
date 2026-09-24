@@ -1,6 +1,11 @@
 node_modules/
 dist/
 
+# Planning docs stay local: direction and the task board are not published.
+# They exist in the working tree, just not in the repo.
+ROADMAP.md
+TODO.md
+
 # Stitch design exports: ~3 MB of PNG mockups plus generated HTML. Reference
 # material, not source. DESIGN.md's rules are mirrored in CLAUDE.md and
 # implemented in src/styles/global.css.

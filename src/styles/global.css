@@ -1,6 +1,10 @@
 @import 'tailwindcss';
 
-/* Self-hosted variable subsets (latin only, ~79 KB total).
+/* Inter (c) 2016 The Inter Project Authors and JetBrains Mono (c) 2020 The
+   JetBrains Mono Project Authors, both licensed under SIL OFL 1.1. Full notices
+   ship alongside the font files at /fonts/ -- see public/fonts/README.md.
+
+   Self-hosted variable subsets (latin only, ~79 KB total).
    Deliberately NOT Google Fonts: a webfont request to a third party on every
    page load would contradict the one promise this site makes, which is that
    nothing about your session leaves the browser. It also keeps the CSP at
