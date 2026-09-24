@@ -7,6 +7,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.2] — 2026-09-24
+
 ### Fixed
 - Releases tagged correctly but never deployed. The Release workflow only
   started Deploy when no `RELEASE_TOKEN` was configured, assuming a PAT-pushed
