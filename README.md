@@ -1,12 +1,34 @@
 # devtools.fadeltd.dev
 
-Developer utilities that run entirely in your browser.
+**Free, open-source developer tools that run entirely in your browser.** A JSON
+formatter, diff checker, base64 encoder/decoder, word counter and list sorter —
+with no backend, no accounts, no ads and no tracking.
 
-**Nothing you paste is ever uploaded.** There is no backend — the site is static
-assets on Cloudflare Workers, so there is no server to send your input to. Paste
-a production token or a customer payload without thinking about it.
+[![Live](https://img.shields.io/badge/live-devtools.fadeltd.dev-38bdf8)](https://devtools.fadeltd.dev)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![No backend](https://img.shields.io/badge/backend-none-22c55e)](#why-another-one-of-these)
 
-→ **[devtools.fadeltd.dev](https://devtools.fadeltd.dev)**
+### → [**devtools.fadeltd.dev**](https://devtools.fadeltd.dev)
+
+## Why another one of these?
+
+Because every other online JSON formatter, base64 decoder and diff checker
+sends what you paste to a server.
+
+This one cannot. There is no backend — it is static files on a CDN, so there is
+no server to send anything to. You can open the network tab and watch it make
+zero requests, or turn off your wifi and keep using it. Paste a production
+token, an API response or a customer record without thinking about it.
+
+Three other things it does that the free sites generally do not:
+
+- **Expands JSON that was serialised into a string** — the thing every
+  structured logger does, including double-encoded. No more copying a `payload`
+  field into a second tab.
+- **Reports every JSON error, not just the first**, each with a line, column and
+  a caret that lines up even in tab-indented files.
+- **Does not corrupt your lists.** `a\nb\n` is two lines, not three — the
+  phantom trailing blank line that most online list tools add.
 
 ## Tools
 
