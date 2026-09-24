@@ -5,9 +5,9 @@ A client-only developer toolbox deployed as a static SPA on Cloudflare Workers.
 not a nice-to-have — it is why the site is worth using over the free
 alternatives, and several rules below exist only to protect it.
 
-Full rationale, the phase plan, and the list of deliberately rejected ideas live
-in `~/.claude/plans/i-want-to-create-curried-goose.md`. Read it before
-re-litigating a decision.
+`ROADMAP.md` holds the sequence, the corrections to earlier assumptions, and the
+list of deliberately rejected ideas. **Read it before re-litigating a decision.**
+This file holds the rules.
 
 ## Commands
 

@@ -1,4 +1,4 @@
-import { Binary, Braces, GitCompare, ListOrdered } from 'lucide-react'
+import { Binary, Braces, GitCompare, ListOrdered, Sigma } from 'lucide-react'
 import type { ToolDef } from './types'
 
 /**
@@ -19,6 +19,33 @@ const RAW_TOOLS = [
     icon: GitCompare,
     load: () => import('@/tools/diff/DiffTool'),
     store: { kind: 'idb' },
+    stateVersion: 1,
+    status: 'beta',
+  },
+  {
+    slug: 'text-stats',
+    title: 'Text Statistics',
+    blurb:
+      'Count characters, letters, words, sentences and lines, with word frequency and reading time.',
+    keywords: [
+      'text statistics',
+      'stats',
+      'count',
+      'character count',
+      'letter count',
+      'word count',
+      'line count',
+      'sentence count',
+      'paragraph count',
+      'keyword density',
+      'word frequency',
+      'reading time',
+      'wordcount',
+    ],
+    category: 'text',
+    icon: Sigma,
+    load: () => import('@/tools/text-stats/TextStatsTool'),
+    store: { kind: 'local' },
     stateVersion: 1,
     status: 'beta',
   },
