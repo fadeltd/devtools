@@ -10,6 +10,7 @@ const CommandPalette = lazy(() =>
 const ShortcutCheatsheet = lazy(() =>
   import('@/components/ShortcutCheatsheet').then((m) => ({ default: m.ShortcutCheatsheet })),
 )
+import { GithubIcon } from '@/components/ui/GithubIcon'
 import { Kbd } from '@/components/ui/Kbd'
 import { useShortcuts } from '@/lib/keys/useShortcuts'
 import type { Shortcut } from '@/lib/keys/types'
@@ -116,6 +117,17 @@ export default function RootLayout() {
           </span>
           <Kbd>⌘K</Kbd>
         </button>
+
+        <a
+          href="https://github.com/fadeltd/devtools"
+          target="_blank"
+          rel="noreferrer noopener"
+          aria-label="Source on GitHub"
+          title="Source on GitHub"
+          className="flex size-11 items-center justify-center rounded-[4px] border border-transparent text-muted hover:border-border hover:bg-surface hover:text-fg md:size-7"
+        >
+          <GithubIcon size={15} />
+        </a>
 
         <Link
           to="/settings"

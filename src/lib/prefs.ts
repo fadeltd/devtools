@@ -18,9 +18,11 @@ export interface Prefs {
   pins: ToolSlug[]
   /** slug -> times opened */
   usage: Partial<Record<ToolSlug, number>>
+  /** Desktop sidebar collapsed to an icon rail. */
+  sidebarCollapsed: boolean
 }
 
-const EMPTY: Prefs = { pins: [], usage: {} }
+const EMPTY: Prefs = { pins: [], usage: {}, sidebarCollapsed: false }
 
 function sanitize(raw: Partial<Prefs> | undefined): Prefs {
   if (!raw) return EMPTY
@@ -29,7 +31,7 @@ function sanitize(raw: Partial<Prefs> | undefined): Prefs {
   for (const [slug, count] of Object.entries(raw.usage ?? {})) {
     if (isToolSlug(slug) && typeof count === 'number' && count > 0) usage[slug] = count
   }
-  return { pins, usage }
+  return { pins, usage, sidebarCollapsed: raw.sidebarCollapsed === true }
 }
 
 function read(): Prefs {
@@ -56,6 +58,10 @@ function update(fn: (p: Prefs) => Prefs): void {
 
 export function recordToolUse(slug: ToolSlug): void {
   update((p) => ({ ...p, usage: { ...p.usage, [slug]: (p.usage[slug] ?? 0) + 1 } }))
+}
+
+export function toggleSidebar(): void {
+  update((p) => ({ ...p, sidebarCollapsed: !p.sidebarCollapsed }))
 }
 
 export function togglePin(slug: ToolSlug): void {

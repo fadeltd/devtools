@@ -1,22 +1,35 @@
 import { NavLink } from 'react-router'
-import { X } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 import { CATEGORIES, CATEGORY_LABELS, VISIBLE_TOOLS, warmTool } from '@/lib/registry'
+import { toggleSidebar, usePrefs } from '@/lib/prefs'
 import { cn } from '@/lib/util/cn'
 
-function ToolLinks({ onNavigate }: { onNavigate?: () => void }) {
+function ToolLinks({
+  collapsed = false,
+  onNavigate,
+}: {
+  collapsed?: boolean
+  onNavigate?: () => void
+}) {
   return (
-    <nav className="flex flex-col gap-4 p-3">
+    <nav className={cn('flex flex-col gap-4 p-3', collapsed && 'items-center gap-3 px-1.5')}>
       {CATEGORIES.map((category) => {
         const tools = VISIBLE_TOOLS.filter((t) => t.category === category)
         if (tools.length === 0) return null
         return (
-          <div key={category}>
-            <div className="flex items-center justify-between px-2 pb-1">
-              <span className="text-[11px] font-semibold uppercase tracking-[0.02em] text-faint">
-                {CATEGORY_LABELS[category]}
-              </span>
-              <span className="font-mono text-[11px] text-faint">{tools.length}</span>
-            </div>
+          <div key={category} className={cn(collapsed && 'flex w-full flex-col items-center gap-1')}>
+            {collapsed ? (
+              // A hairline keeps the grouping legible without a heading.
+              <div className="mb-1 h-px w-5 bg-border first:hidden" aria-hidden />
+            ) : (
+              <div className="flex items-center justify-between px-2 pb-1">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.02em] text-faint">
+                  {CATEGORY_LABELS[category]}
+                </span>
+                <span className="font-mono text-[11px] text-faint">{tools.length}</span>
+              </div>
+            )}
+
             {tools.map((tool) => (
               <NavLink
                 key={tool.slug}
@@ -24,17 +37,24 @@ function ToolLinks({ onNavigate }: { onNavigate?: () => void }) {
                 onClick={onNavigate}
                 onPointerEnter={() => warmTool(tool.slug)}
                 onFocus={() => warmTool(tool.slug)}
+                // The title is the only label when collapsed, so it is not
+                // decorative -- it is how the rail stays usable.
+                title={collapsed ? `${tool.title} — ${tool.blurb}` : undefined}
+                aria-label={collapsed ? tool.title : undefined}
                 className={({ isActive }) =>
                   cn(
-                    'flex min-h-11 items-center gap-2 rounded-[4px] px-2 text-[13px] md:min-h-7',
+                    'flex min-h-11 items-center rounded-[4px] text-[13px]',
+                    collapsed ? 'w-9 justify-center md:min-h-9' : 'gap-2 px-2 md:min-h-7',
                     isActive
-                      ? 'border-l-2 border-accent bg-surface-2 pl-1.5 text-accent'
+                      ? collapsed
+                        ? 'bg-surface-2 text-accent'
+                        : 'border-l-2 border-accent bg-surface-2 pl-1.5 text-accent'
                       : 'text-muted hover:bg-surface hover:text-fg',
                   )
                 }
               >
                 <tool.icon size={15} aria-hidden className="shrink-0" />
-                <span className="truncate">{tool.title}</span>
+                {!collapsed && <span className="truncate">{tool.title}</span>}
               </NavLink>
             ))}
           </div>
@@ -45,9 +65,40 @@ function ToolLinks({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function Sidebar() {
+  const { sidebarCollapsed } = usePrefs()
+
   return (
-    <aside className="hidden w-[220px] shrink-0 overflow-y-auto border-r border-border bg-surface scroll-thin md:block">
-      <ToolLinks />
+    <aside
+      className={cn(
+        'hidden shrink-0 flex-col border-r border-border bg-surface md:flex',
+        sidebarCollapsed ? 'w-[52px]' : 'w-[220px]',
+      )}
+    >
+      <div className="min-h-0 flex-1 overflow-y-auto scroll-thin">
+        <ToolLinks collapsed={sidebarCollapsed} />
+      </div>
+
+      <button
+        type="button"
+        onClick={toggleSidebar}
+        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-expanded={!sidebarCollapsed}
+        className={cn(
+          'flex min-h-9 shrink-0 items-center gap-2 border-t border-border px-3 text-[12px]',
+          'text-faint hover:bg-surface-2 hover:text-fg',
+          sidebarCollapsed && 'justify-center px-0',
+        )}
+      >
+        {sidebarCollapsed ? (
+          <PanelLeftOpen size={15} aria-hidden />
+        ) : (
+          <>
+            <PanelLeftClose size={15} aria-hidden />
+            <span>Collapse</span>
+          </>
+        )}
+      </button>
     </aside>
   )
 }
@@ -69,6 +120,8 @@ export function SidebarSheet({ open, onClose }: { open: boolean; onClose: () => 
             <X size={16} />
           </button>
         </div>
+        {/* Always full labels on mobile: the sheet has room, and a rail would
+            be a worse target. */}
         <ToolLinks onNavigate={onClose} />
       </div>
     </div>

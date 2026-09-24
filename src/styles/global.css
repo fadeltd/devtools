@@ -117,6 +117,16 @@ select {
   outline-offset: 1px;
 }
 
+/* Full-bleed surfaces sit flush against their pane, which is overflow-hidden,
+   so an outset ring gets clipped on whichever edges meet the container -- you
+   see the top and right but not the bottom and left. Draw the ring INSIDE the
+   element instead, which is what the design system prescribes for this case. */
+textarea:focus-visible,
+.cm-editor.cm-focused {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
 ::selection {
   background: var(--color-accent-dim);
   color: var(--color-fg);
