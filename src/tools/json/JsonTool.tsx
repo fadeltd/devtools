@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo } from 'react'
-import { AlertTriangle, CheckCircle2, Wand2 } from 'lucide-react'
+import { AlertTriangle, Braces, CheckCircle2, Wand2 } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { TwoPane } from '@/components/layout/TwoPane'
 import { Badge } from '@/components/ui/Badge'
@@ -13,6 +13,7 @@ import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatBytes, formatCount } from '@/lib/util/bytes'
 import { analyze, stripJsonc, type JsonIssue } from './core/errors'
+import { expandEmbedded, findEmbeddedJson } from './core/embedded'
 import {
   escapeAsJsonString,
   findNumberIssues,
@@ -31,6 +32,7 @@ interface State {
   indent: Indent
   sortKeys: boolean
   lenient: boolean
+  expandEmbedded: boolean
 }
 
 const INITIAL: State = {
@@ -39,6 +41,7 @@ const INITIAL: State = {
   indent: 2,
   sortKeys: false,
   lenient: false,
+  expandEmbedded: false,
 }
 
 function IssueCard({ issue }: { issue: JsonIssue }) {
@@ -91,6 +94,14 @@ export default function JsonTool() {
   )
 
   const numberIssues = useMemo(() => findNumberIssues(deferred.text), [deferred.text])
+
+  // Structured logs put their payload in a string, often double-encoded. Finding
+  // those is the difference between reading this document here and copying a
+  // field into another tab twice.
+  const embedded = useMemo(
+    () => (analysis.value === undefined ? [] : findEmbeddedJson(analysis.value)),
+    [analysis.value],
+  )
   const precisionLoss = numberIssues.filter((n) => n.kind === 'precision')
   const reformatted = numberIssues.filter((n) => n.kind === 'reformatted')
 
@@ -104,9 +115,16 @@ export default function JsonTool() {
       return r.ok ? r.value : ''
     }
     if (analysis.value === undefined) return ''
+
+    // Expansion is a view over the parsed value; the source text is untouched,
+    // so toggling it off restores the original exactly.
+    const value = deferred.expandEmbedded
+      ? expandEmbedded(analysis.value).value
+      : analysis.value
+
     return mode === 'minify'
-      ? minifyValue(analysis.value, { sortKeys })
-      : formatValue(analysis.value, { indent, sortKeys })
+      ? minifyValue(value, { sortKeys })
+      : formatValue(value, { indent, sortKeys })
   }, [analysis.value, deferred])
 
   const unescapeError =
@@ -189,6 +207,14 @@ export default function JsonTool() {
               >
                 Allow comments / trailing commas
               </Toggle>
+              {embedded.length > 0 && (
+                <Toggle
+                  checked={state.expandEmbedded}
+                  onChange={(v) => setState((p) => ({ ...p, expandEmbedded: v }))}
+                >
+                  Expand embedded JSON
+                </Toggle>
+              )}
             </>
           )}
 
@@ -258,6 +284,46 @@ export default function JsonTool() {
                 <Button onClick={() => setState((p) => ({ ...p, lenient: true }))}>
                   Allow them
                 </Button>
+              </div>
+            )}
+
+            {/* The whole point of the feature is that you did not know the
+                payload was in there. It has to announce itself. */}
+            {embedded.length > 0 && !isTextMode && (
+              <div className="shrink-0 border-b border-border px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Braces size={14} className="shrink-0 text-accent" aria-hidden />
+                  <span className="text-[12px]">
+                    {state.expandEmbedded ? 'Expanded ' : 'Found '}
+                    <strong className="font-medium">
+                      {formatCount(embedded.length)} embedded JSON{' '}
+                      {embedded.length === 1 ? 'string' : 'strings'}
+                    </strong>
+                    {embedded.some((e) => e.depth > 1) && ' (some double-encoded)'}
+                  </span>
+                  <Button
+                    onClick={() => setState((p) => ({ ...p, expandEmbedded: !p.expandEmbedded }))}
+                  >
+                    <Wand2 size={14} aria-hidden />
+                    {state.expandEmbedded ? 'Show original' : 'Expand all'}
+                  </Button>
+                </div>
+                <div className="mt-1.5 flex flex-wrap gap-1">
+                  {embedded.slice(0, 6).map((e) => (
+                    <code
+                      key={e.pointer + e.depth}
+                      title={`${e.pointer === '' ? '(root)' : e.pointer} — ${formatCount(e.rawLength)} characters`}
+                      className="rounded-[4px] border border-border bg-bg px-1.5 py-px font-mono text-[11px] text-muted"
+                    >
+                      {e.dotPath}
+                    </code>
+                  ))}
+                  {embedded.length > 6 && (
+                    <span className="self-center font-mono text-[11px] text-faint">
+                      +{formatCount(embedded.length - 6)} more
+                    </span>
+                  )}
+                </div>
               </div>
             )}
 
