@@ -44,9 +44,9 @@ build-time prerender and sitemap — so nothing else needs editing.
 Each tool is split into `core/` (pure functions: no React, no DOM, no store —
 this is where all the tests live) and a thin `.tsx` shell.
 
-`CLAUDE.md` has the rules that matter, including several that look like trivia
-but are silent data-corruption bugs if ignored. `ROADMAP.md` has what's next and
-what was deliberately rejected.
+`TODO.md` is the task list. `CLAUDE.md` has the rules that matter, including
+several that look like trivia but are silent data-corruption bugs if ignored.
+`ROADMAP.md` has what's next and what was deliberately rejected.
 
 ## Stack
 
