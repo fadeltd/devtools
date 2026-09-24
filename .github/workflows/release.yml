@@ -25,11 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     # Never react to our own release commit.
     if: "!contains(github.event.head_commit.message, '[skip ci]')"
-    env:
-      # A tag pushed with GITHUB_TOKEN does NOT trigger other workflows, by
-      # design, to prevent recursion. With a PAT in RELEASE_TOKEN the tag
-      # triggers Deploy natively; without one we start Deploy explicitly.
-      HAS_PAT: ${{ secrets.RELEASE_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -91,15 +86,21 @@ jobs:
             --notes "${{ steps.cut.outputs.notes }}" \
             || echo "::notice::Release already exists."
 
-      # Only needed while no PAT is configured; with one, the tag push above
-      # has already started Deploy.
-      - name: Start Deploy (no PAT configured)
-        if: steps.cut.outputs.released == 'true' && env.HAS_PAT != 'true'
+      # Always dispatch, unconditionally.
+      #
+      # This previously only ran when no PAT was configured, on the assumption
+      # that a PAT-pushed tag would trigger Deploy natively via `on: push:
+      # tags`. With a PAT present that assumption silently took over and no
+      # deploy ever happened: the tag was pushed, Release reported success, and
+      # Deploy had zero runs. Dispatching every time removes the dependency on
+      # how GitHub attributes the push. Deploy is idempotent -- it builds and
+      # uploads the same tag -- so a duplicate run is harmless, whereas a
+      # missed one is invisible.
+      - name: Start Deploy
+        if: steps.cut.outputs.released == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          echo "::notice::No RELEASE_TOKEN set, so the tag cannot trigger Deploy. Dispatching it directly."
-          gh workflow run deploy.yml --ref main -f tag="${{ steps.cut.outputs.tag }}"
+        run: gh workflow run deploy.yml --ref main -f tag="${{ steps.cut.outputs.tag }}"
 
       - name: Summary
         run: |

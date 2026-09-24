@@ -7,7 +7,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+- Releases tagged correctly but never deployed. The Release workflow only
+  started Deploy when no `RELEASE_TOKEN` was configured, assuming a PAT-pushed
+  tag would trigger it natively. With a PAT present that assumption took over
+  silently: the tag was pushed, Release reported success, and Deploy had zero
+  runs. Release now always starts Deploy explicitly.
 
 ## [0.2.1] — 2026-09-24
 

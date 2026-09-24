@@ -98,6 +98,12 @@ Merging to `main` then does the rest, automatically:
 An empty `[Unreleased]` releases nothing, so a docs-only or refactor merge ships
 nothing. That is deliberate: merging and releasing are separate decisions.
 
+Deploy is always started explicitly by Release, never left to the tag event.
+A tag pushed by automation may or may not trigger `on: push: tags` depending on
+which credential pushed it, and a deploy that silently does not happen looks
+exactly like a deploy that succeeded. Dispatching every time is deterministic,
+and Deploy is idempotent so a duplicate run is harmless.
+
 Two notes for anyone editing the workflows:
 
 - `### Removed` is deliberately a *patch*, not a major. Inferring a major bump
