@@ -37,9 +37,9 @@ describe('parseUnreleased', () => {
   })
 })
 
-describe('determineBump', () => {
-  const bumpOf = (body: string) => determineBump(parseUnreleased(doc(body)))
+const bumpOf = (body: string) => determineBump(parseUnreleased(doc(body)))
 
+describe('determineBump', () => {
   it('is none when there is nothing to release', () => {
     expect(bumpOf('Nothing yet.')).toBe('none')
   })

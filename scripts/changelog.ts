@@ -45,9 +45,9 @@ export function parseUnreleased(changelog: string): Unreleased {
  */
 export function determineBump(u: Unreleased): Bump {
   if (!u.hasContent) return 'none'
-  const lower = u.sections.map((s) => s.toLowerCase())
-  if (lower.includes('breaking') || lower.includes('breaking changes')) return 'major'
-  if (lower.includes('added')) return 'minor'
+  const headings = new Set(u.sections.map((s) => s.toLowerCase()))
+  if (headings.has('breaking') || headings.has('breaking changes')) return 'major'
+  if (headings.has('added')) return 'minor'
   return 'patch'
 }
 
