@@ -3,6 +3,7 @@ dist/
 
 # Planning docs stay local: direction and the task board are not published.
 # They exist in the working tree, just not in the repo.
+tmp
 ROADMAP.md
 TODO.md
 

@@ -76,14 +76,18 @@ jobs:
             git push origin "${TAG}"
           fi
 
+      # The notes go through env, never through ${{ }} in the script. Expression
+      # substitution pastes the text into the script BEFORE bash parses it, so
+      # every backtick in the changelog (`display: flex`) was run as a command
+      # and the step died -- after the tag was pushed, so Deploy never started.
       - name: Create the GitHub release
         if: steps.cut.outputs.released == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.cut.outputs.tag }}
+          NOTES: ${{ steps.cut.outputs.notes }}
         run: |
-          gh release create "${{ steps.cut.outputs.tag }}" \
-            --title "${{ steps.cut.outputs.tag }}" \
-            --notes "${{ steps.cut.outputs.notes }}" \
+          gh release create "$TAG" --title "$TAG" --notes "$NOTES" \
             || echo "::notice::Release already exists."
 
       # Always dispatch, unconditionally.

@@ -7,7 +7,19 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- HTML to Text: paste HTML and get readable plain text back. Paragraphs, lists
+  and tables keep their structure; `script`, `style`, `head`, `svg`, hidden
+  elements and icon ligatures (`role="img"`) are dropped, and entities are
+  decoded. Link URLs and class-based hidden detection (`.hidden`, `.sr-only`)
+  are optional toggles.
+
+### Fixed
+- v0.2.3 was tagged but never released or deployed. The Release workflow
+  pasted the changelog notes straight into a shell command, so the backticks in
+  them were executed as command substitution and the step failed after the tag
+  had been pushed, skipping Deploy. The notes are now passed through an
+  environment variable. This release ships the 0.2.3 fixes as well.
 
 ## [0.2.3] — 2026-09-24
 
