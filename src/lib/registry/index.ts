@@ -1,4 +1,4 @@
-import { Binary, Braces, GitCompare, KeyRound, ListOrdered, Sigma } from 'lucide-react'
+import { Binary, Braces, CodeXml, GitCompare, KeyRound, ListOrdered, Sigma } from 'lucide-react'
 import type { ToolDef } from './types'
 
 /**
@@ -124,6 +124,30 @@ const RAW_TOOLS = [
     icon: Braces,
     load: () => import('@/tools/json/JsonTool'),
     store: { kind: 'local' },
+    stateVersion: 1,
+    status: 'beta',
+  },
+  {
+    slug: 'html-text',
+    title: 'HTML to Text',
+    blurb: 'Extract readable plain text from HTML, keeping paragraphs, lists and tables intact.',
+    keywords: [
+      'html to text',
+      'extract text',
+      'strip html',
+      'strip tags',
+      'remove html tags',
+      'html stripper',
+      'plain text',
+      'innertext',
+      'textcontent',
+      'html2text',
+    ],
+    category: 'web',
+    icon: CodeXml,
+    load: () => import('@/tools/html-text/HtmlTextTool'),
+    // Pasted page source runs to several MB: too big for localStorage.
+    store: { kind: 'idb' },
     stateVersion: 1,
     status: 'beta',
   },
