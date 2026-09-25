@@ -7,6 +7,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.3.0] — 2026-09-25
+
 ### Added
 - HTML to Text: paste HTML and get readable plain text back. Paragraphs, lists
   and tables keep their structure; `script`, `style`, `head`, `svg`, hidden
