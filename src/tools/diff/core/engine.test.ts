@@ -30,6 +30,9 @@ const docArb = fc
 const ignoreArb = fc.record({ whitespace: fc.boolean(), case: fc.boolean(), trim: fc.boolean() })
 
 const exact = (a: string, b: string, refine = true) => computeDiff(a, b, { refine })!
+const withIgnore = (o: IgnoreOptions, a: string, b: string) =>
+  computeDiff(a, b, { keys: keysFor(o), refine: true })!
+const onBoundary = (s: string, i: number) => i === 0 || i === s.length || s[i - 1] === '\n'
 
 describe('computeDiff', () => {
   it('finds nothing in identical input', () => {
@@ -99,21 +102,19 @@ describe('computeDiff', () => {
   })
 
   describe('with ignore keys', () => {
-    const run = (o: IgnoreOptions, a: string, b: string) => computeDiff(a, b, { keys: keysFor(o), refine: true })!
-
     it('whitespace: a spacing-only change is no change', () => {
-      expect(quads(run({ ...NO_IGNORE, whitespace: true }, 'a  b\nc\n', 'a b\nc\n').lines)).toEqual([])
+      expect(quads(withIgnore({ ...NO_IGNORE, whitespace: true }, 'a  b\nc\n', 'a b\nc\n').lines)).toEqual([])
     })
 
     it('case: offsets still index the original text', () => {
       const a = 'FOO bar\n'
-      const r = run({ ...NO_IGNORE, case: true }, a, 'foo baz\n')
+      const r = withIgnore({ ...NO_IGNORE, case: true }, a, 'foo baz\n')
       expect(quads(r.changes)).toEqual([[4, 7, 4, 7]])
       expect(a.slice(4, 7)).toBe('bar')
     })
 
     it('trim: CRLF against LF is no change', () => {
-      expect(quads(run({ ...NO_IGNORE, trim: true }, 'a\r\nb\r\n', 'a\nb\n').lines)).toEqual([])
+      expect(quads(withIgnore({ ...NO_IGNORE, trim: true }, 'a\r\nb\r\n', 'a\nb\n').lines)).toEqual([])
     })
   })
 
@@ -147,7 +148,6 @@ describe('computeDiff', () => {
             }
           }
 
-          const onBoundary = (s: string, i: number) => i === 0 || i === s.length || s[i - 1] === '\n'
           for (const [fromA, toA, fromB, toB] of lines) {
             expect([fromA, toA].every((i) => onBoundary(a, i))).toBe(true)
             expect([fromB, toB].every((i) => onBoundary(b, i))).toBe(true)
