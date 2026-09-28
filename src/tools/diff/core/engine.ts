@@ -67,9 +67,18 @@ export function computeDiff(a: string, b: string, opts: EngineOptions): DiffResu
     endB--
   }
 
-  const parts = diffArrays(keysA.slice(head, endA), keysB.slice(head, endB), {
-    timeout: LINE_TIMEOUT_MS,
-  })
+  // Lines whose key never occurs on the other side can never be matched, so
+  // setting them aside leaves the longest common subsequence -- and so the
+  // diff -- exactly as minimal, while Myers only sees lines that can pair up.
+  // This is GNU diff's discard step, and it is what keeps scattered one-line
+  // edits and unrelated documents from blowing the time limit: both shrink to
+  // almost nothing.
+  const inB = new Set(keysB.slice(head, endB))
+  const inA = new Set(keysA.slice(head, endA))
+  const keptA = keptLines(keysA, head, endA, inB)
+  const keptB = keptLines(keysB, head, endB, inA)
+
+  const parts = diffArrays(keptA.keys, keptB.keys, { timeout: LINE_TIMEOUT_MS })
   if (parts === undefined) return null
 
   const startsA = lineStarts(linesA)
@@ -78,42 +87,56 @@ export function computeDiff(a: string, b: string, opts: EngineOptions): DiffResu
   const lines: number[] = []
   const changes: number[] = []
 
-  let lineA = head
-  let lineB = head
-  // Start of the run being collected, or -1 between runs. jsdiff emits a
-  // replacement as removed-then-added, so a run is a maximal stretch of
-  // non-equal parts.
-  let runA = -1
-  let runB = -1
-  const flush = () => {
+  // Everything between two consecutive matched lines is one changed run.
+  let nextA = head
+  let nextB = head
+  const emit = (toLineA: number, toLineB: number) => {
+    if (toLineA === nextA && toLineB === nextB) return
     const run: Run = {
-      fromA: startsA[runA]!,
-      toA: startsA[lineA]!,
-      fromB: startsB[runB]!,
-      toB: startsB[lineB]!,
+      fromA: startsA[nextA]!,
+      toA: startsA[toLineA]!,
+      fromB: startsB[nextB]!,
+      toB: startsB[toLineB]!,
     }
     lines.push(run.fromA, run.toA, run.fromB, run.toB)
     refineRun(a, b, run, opts, deadline - now(), changes)
-    runA = -1
   }
 
+  let ka = 0
+  let kb = 0
   for (const part of parts) {
-    if (part.added || part.removed) {
-      if (runA < 0) {
-        runA = lineA
-        runB = lineB
+    if (part.removed) ka += part.count
+    else if (part.added) kb += part.count
+    else {
+      for (let n = 0; n < part.count; n++) {
+        const matchA = keptA.lines[ka++]!
+        const matchB = keptB.lines[kb++]!
+        emit(matchA, matchB)
+        nextA = matchA + 1
+        nextB = matchB + 1
       }
-      if (part.removed) lineA += part.count
-      else lineB += part.count
-    } else {
-      if (runA >= 0) flush()
-      lineA += part.count
-      lineB += part.count
     }
   }
-  if (runA >= 0) flush()
+  emit(endA, endB)
 
   return { lines: Int32Array.from(lines), changes: Int32Array.from(changes) }
+}
+
+/** The lines in `[from, to)` whose key occurs on the other side, with their original indices. */
+function keptLines(
+  keys: readonly string[],
+  from: number,
+  to: number,
+  other: ReadonlySet<string>,
+): { keys: string[]; lines: number[] } {
+  const kept: { keys: string[]; lines: number[] } = { keys: [], lines: [] }
+  for (let i = from; i < to; i++) {
+    if (other.has(keys[i]!)) {
+      kept.keys.push(keys[i]!)
+      kept.lines.push(i)
+    }
+  }
+  return kept
 }
 
 /** `starts[i]` is where line `i` begins; `starts[lines.length]` is the total length. */

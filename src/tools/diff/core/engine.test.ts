@@ -95,10 +95,32 @@ describe('computeDiff', () => {
     expect(quads(r.changes)).toEqual(quads(r.lines))
   })
 
+  it('aligns thousands of scattered single-line edits in time', () => {
+    // Every other line edited: too slow for plain Myers inside the time limit,
+    // instant once lines unique to one side are set aside.
+    const base = Array.from({ length: 5000 }, (_, i) => `line ${i} alpha beta\n`)
+    const a = base.join('')
+    const b = base.map((l, i) => (i % 2 ? l.replace('beta', 'BETA') : l)).join('')
+    const r = computeDiff(a, b, { refine: true })
+    expect(r).not.toBeNull()
+    expect(quads(r!.lines)).toHaveLength(2500)
+    expect(rebuild(a, b, r!.changes)).toBe(b)
+  })
+
   it('returns null when the line stage cannot finish in time', () => {
+    // Every line exists on both sides, just scrambled, so nothing can be set
+    // aside and Myers has to do all the work.
+    const a = Array.from({ length: 40_000 }, (_, i) => `v${i % 500}\n`).join('')
+    const b = Array.from({ length: 40_000 }, (_, i) => `v${(i * 37) % 500}\n`).join('')
+    expect(computeDiff(a, b, { refine: true })).toBeNull()
+  })
+
+  it('treats two unrelated documents as one replaced block, without timing out', () => {
     const a = Array.from({ length: 40_000 }, (_, i) => `x${i}\n`).join('')
     const b = Array.from({ length: 40_000 }, (_, i) => `y${i}\n`).join('')
-    expect(computeDiff(a, b, { refine: true })).toBeNull()
+    const r = computeDiff(a, b, { refine: true })
+    expect(r).not.toBeNull()
+    expect(quads(r!.lines)).toEqual([[0, a.length, 0, b.length]])
   })
 
   describe('with ignore keys', () => {
