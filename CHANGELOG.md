@@ -7,6 +7,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.4.0] — 2026-09-28
+
 ### Added
 - JSON Formatter: a Tree view alongside the text output. It shows the same
   document the text does, with sorted keys and expanded embedded JSON, as a
