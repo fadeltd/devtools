@@ -26,6 +26,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   them digit for digit instead of rounding them. This includes numbers inside
   expanded embedded JSON.
 
+### Changed
+- Diff: highlights inside a changed line now cover whole words and
+  punctuation instead of stray characters, and the change count counts
+  changed blocks of lines (what Alt+↓ steps through) rather than individual
+  edits.
+
 ### Fixed
 - JSON Formatter: with "Expand embedded JSON" on, a key named `__proto__`
   was silently dropped from the output. It is now kept like any other key.

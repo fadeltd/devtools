@@ -1,5 +1,4 @@
 import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react'
-import { diff } from '@codemirror/merge'
 import { ArrowLeftRight, ChevronDown, ChevronUp, Upload } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { Badge } from '@/components/ui/Badge'
@@ -11,6 +10,8 @@ import { useToolUsageTracker } from '@/lib/prefs'
 import { readTextFile } from '@/lib/util/filedrop'
 import { formatCount } from '@/lib/util/bytes'
 import { MergePane, type DiffApi } from './MergePane'
+import { NO_IGNORE } from './core/ignore'
+import { diffFor } from './engine'
 import { assessSize, diffStats } from './core/stats'
 
 interface State {
@@ -37,7 +38,8 @@ export default function DiffTool() {
   const stats = useMemo(() => {
     if (size.tier === 'refuse') return null
     if (deferred.left === '' && deferred.right === '') return null
-    return diffStats(deferred.left, deferred.right, diff(deferred.left, deferred.right))
+    const settings = { ignore: NO_IGNORE, refine: size.tier === 'ok' }
+    return diffStats(deferred.left, deferred.right, diffFor(deferred.left, deferred.right, settings).lines)
   }, [deferred, size.tier])
 
   // Side-by-side monospace panes are unusable at phone width, so the split

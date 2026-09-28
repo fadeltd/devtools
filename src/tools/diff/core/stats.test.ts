@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { diff } from '@codemirror/merge'
-import { assessSize, diffStats, formatStats } from './stats'
+import { computeDiff } from './engine'
+import { assessSize, diffStats, formatStats, type ChangeRange } from './stats'
 
 const statsOf = (a: string, b: string) => diffStats(a, b, diff(a, b))
 
@@ -112,5 +113,41 @@ describe('assessSize', () => {
     const v = assessSize('a\n'.repeat(5_000_000), '')
     expect(v.tier).toBe('refuse')
     expect(v.reason).toContain('git diff')
+  })
+})
+
+function ranges(q: Int32Array): ChangeRange[] {
+  const out: ChangeRange[] = []
+  for (let i = 0; i < q.length; i += 4) {
+    out.push({ fromA: q[i]!, toA: q[i + 1]!, fromB: q[i + 2]!, toB: q[i + 3]! })
+  }
+  return out
+}
+
+describe('diffStats over the two-stage engine', () => {
+  it('counts a line with several word edits once', () => {
+    const a = 'a b c\n'
+    const b = 'x b y\n'
+    const r = computeDiff(a, b, { refine: true })!
+    expect(diffStats(a, b, ranges(r.lines))).toMatchObject({
+      changedLines: 1,
+      addedLines: 0,
+      removedLines: 0,
+      chunks: 1,
+    })
+    // Two highlight regions on one line: the reason stats are fed `lines`.
+    expect(ranges(r.changes)).toHaveLength(2)
+  })
+
+  it('separates a modification from a trailing addition', () => {
+    const a = 'a\nb\nc\n'
+    const b = 'a\nX\nc\nd\n'
+    const r = computeDiff(a, b, { refine: true })!
+    expect(diffStats(a, b, ranges(r.lines))).toMatchObject({
+      changedLines: 1,
+      addedLines: 1,
+      removedLines: 0,
+      chunks: 2,
+    })
   })
 })

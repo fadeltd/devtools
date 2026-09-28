@@ -3,6 +3,8 @@ import { EditorState, type Extension } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
 import { MergeView, goToNextChunk, goToPreviousChunk, unifiedMergeView } from '@codemirror/merge'
 import { diffTheme } from './theme'
+import { NO_IGNORE } from './core/ignore'
+import { makeDiffConfig } from './engine'
 
 export interface DiffApi {
   jump: (direction: 'next' | 'prev') => void
@@ -62,6 +64,7 @@ export function MergePane(props: MergePaneProps) {
     if (!parent) return
 
     const collapseUnchanged = { margin: 3, minSize: 4 }
+    const diffConfig = makeDiffConfig({ ignore: NO_IGNORE, refine: highlightChanges })
 
     if (mode === 'split') {
       const view = new MergeView({
@@ -70,6 +73,7 @@ export function MergePane(props: MergePaneProps) {
         highlightChanges,
         gutter: true,
         collapseUnchanged,
+        diffConfig,
         // Deliberately no revertControls: you merge in git, not in a browser tab.
         a: {
           doc: cb.current.left,
@@ -107,6 +111,7 @@ export function MergePane(props: MergePaneProps) {
             highlightChanges,
             gutter: true,
             collapseUnchanged,
+            diffConfig,
             mergeControls: false,
           }),
           ...baseExtensions(wrapLines),
