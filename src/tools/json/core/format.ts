@@ -1,3 +1,5 @@
+import { isRawNumber } from './rawjson'
+
 export type Indent = 2 | 4 | 'tab'
 
 export interface FormatOptions {
@@ -12,7 +14,7 @@ function indentValue(indent: Indent): string | number {
 /** Deep key sort. Never reorders arrays — their order is data. */
 export function sortKeysDeep(value: unknown, cmp: (a: string, b: string) => number): unknown {
   if (Array.isArray(value)) return value.map((v) => sortKeysDeep(v, cmp))
-  if (value === null || typeof value !== 'object') return value
+  if (value === null || typeof value !== 'object' || isRawNumber(value)) return value
 
   const entries = Object.entries(value as Record<string, unknown>)
   return Object.fromEntries(
@@ -21,6 +23,11 @@ export function sortKeysDeep(value: unknown, cmp: (a: string, b: string) => numb
 }
 
 const keyCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'variant' }).compare
+
+/** Deep key sort with the same collator the formatter uses. */
+export function withSortedKeys(value: unknown): unknown {
+  return sortKeysDeep(value, keyCollator)
+}
 
 export function formatValue(value: unknown, o: FormatOptions): string {
   const prepared = o.sortKeys ? sortKeysDeep(value, keyCollator) : value

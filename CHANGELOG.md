@@ -7,7 +7,28 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- JSON Formatter: a Tree view alongside the text output. It shows the same
+  document the text does, with sorted keys and expanded embedded JSON, as a
+  collapsible tree. Only the rows on screen are rendered, so large documents
+  scroll smoothly. It opens a couple of levels deep, and has Expand all /
+  Collapse all and full keyboard navigation (arrow keys, Home/End, Enter).
+- JSON Formatter: copy the selected tree node's path as an RFC 6901 pointer
+  (`/items/0/id`), a dot path (`items[0].id`) or a jq path (`.items[0].id`).
+- JSON Formatter: embedded JSON strings can be expanded one field at a time.
+  A field nested inside another payload unlocks once its parent is expanded.
+- JSON Formatter: auto-fixes for almost-JSON. It strips a JSONP wrapper, the
+  `)]}'` prefix, a byte-order mark and comments; converts single quotes;
+  quotes bare keys; and removes trailing commas. Apply them in place, or
+  review the change side by side in Diff first.
+- JSON Formatter: lossless mode. When a document has numbers JavaScript
+  cannot hold exactly, like `12345678901234567890`, format and minify keep
+  them digit for digit instead of rounding them. This includes numbers inside
+  expanded embedded JSON.
+
+### Fixed
+- JSON Formatter: with "Expand embedded JSON" on, a key named `__proto__`
+  was silently dropped from the output. It is now kept like any other key.
 
 ## [0.3.0] — 2026-09-25
 

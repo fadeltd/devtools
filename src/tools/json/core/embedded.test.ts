@@ -1,6 +1,7 @@
 import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import {
+  embeddedFields,
   escapePointerToken,
   expandEmbedded,
   findEmbeddedJson,
@@ -116,6 +117,15 @@ describe('findEmbeddedJson', () => {
 })
 
 describe('expandEmbedded', () => {
+  it('keeps a "__proto__" key instead of assigning the prototype', () => {
+    // JSON.parse makes "__proto__" an own key; `out[key] = v` would instead
+    // set the prototype, silently dropping the key from the output.
+    const doc = JSON.parse('{"__proto__":{"x":1},"a":"{\\"b\\":1}"}') as unknown
+    const { value } = expandEmbedded(doc)
+    expect(JSON.stringify(value)).toBe('{"__proto__":{"x":1},"a":{"b":1}}')
+    expect(Object.getPrototypeOf(value)).toBe(Object.prototype)
+  })
+
   it('replaces the string with the parsed value', () => {
     const doc = { level: 'info', payload: '{"userId":42}' }
     const { value, expanded } = expandEmbedded(doc)
@@ -206,5 +216,40 @@ describe('reversibility', () => {
     const doc = { payload: '{"a":"{\\"b\\":1}"}' }
     const once = expandEmbedded(doc).value
     expect(expandEmbedded(once).value).toEqual(once)
+  })
+})
+
+describe('embeddedFields', () => {
+  const doc = {
+    once: '{"a":1}',
+    nested: JSON.stringify({ deep: JSON.stringify({ z: 1 }) }),
+  }
+  const fields = embeddedFields(findEmbeddedJson(doc))
+
+  it('links a field revealed by another to that field', () => {
+    expect(fields.map((f) => [f.pointer, f.parent])).toEqual([
+      ['/once', null],
+      ['/nested', null],
+      ['/nested/deep', '/nested'],
+    ])
+  })
+
+  it('expanding one field leaves the others as raw strings', () => {
+    const { value } = expandEmbedded(doc, { only: new Set(['/once']) })
+    expect(value).toEqual({ once: { a: 1 }, nested: doc.nested })
+  })
+
+  it('a nested field expands only with its parent', () => {
+    const alone = expandEmbedded(doc, { only: new Set(['/nested/deep']) }).value
+    expect((alone as { nested: unknown }).nested).toBe(doc.nested)
+    const outer = expandEmbedded(doc, { only: new Set(['/nested']) }).value
+    expect((outer as { nested: unknown }).nested).toEqual({ deep: JSON.stringify({ z: 1 }) })
+    const both = expandEmbedded(doc, { only: new Set(['/nested', '/nested/deep']) }).value
+    expect((both as { nested: unknown }).nested).toEqual({ deep: { z: 1 } })
+  })
+
+  it('does not treat a sibling with a common prefix as a parent', () => {
+    const f = embeddedFields(findEmbeddedJson({ a: '{"x":1}', ab: '{"y":2}' }))
+    expect(f.map((x) => x.parent)).toEqual([null, null])
   })
 })

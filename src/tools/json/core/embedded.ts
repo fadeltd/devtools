@@ -13,6 +13,8 @@
  * get wrong.
  */
 
+import { isRawNumber } from './rawjson'
+
 /** RFC 6901: "~" becomes "~0" and "/" becomes "~1", in that order. */
 export function escapePointerToken(token: string): string {
   return token.replaceAll('~', '~0').replaceAll('/', '~1')
@@ -28,7 +30,10 @@ export function toDotPath(path: readonly (string | number)[]): string {
   let out = ''
   for (const segment of path) {
     if (typeof segment === 'number') out += `[${segment}]`
-    else if (/^[A-Za-z_$][\w$]*$/.test(segment)) out += out === '' ? segment : `.${segment}`
+    // A bare leading `$` would read back as the root marker.
+    else if (/^[A-Za-z_$][\w$]*$/.test(segment) && !(out === '' && segment === '$')) {
+      out += out === '' ? segment : `.${segment}`
+    }
     else out += `[${JSON.stringify(segment)}]`
   }
   return out === '' ? '$' : out
@@ -55,11 +60,17 @@ export interface EmbeddedOptions {
   maxDepth?: number
   /** Strings longer than this are skipped, to bound the cost of the scan. */
   maxStringLength?: number
+  /**
+   * How to parse a candidate string. Lossless mode passes `parseLossless`, so a
+   * big number inside an embedded payload keeps its digits too.
+   */
+  parse?: (text: string) => unknown
 }
 
 const DEFAULTS: Required<EmbeddedOptions> = {
   maxDepth: 6,
   maxStringLength: 2_000_000,
+  parse: (text) => JSON.parse(text) as unknown,
 }
 
 /**
@@ -72,6 +83,7 @@ const DEFAULTS: Required<EmbeddedOptions> = {
 export function parseEmbedded(
   value: string,
   maxStringLength = DEFAULTS.maxStringLength,
+  parse = DEFAULTS.parse,
 ): { kind: 'object' | 'array'; parsed: unknown } | null {
   if (value.length > maxStringLength) return null
 
@@ -85,7 +97,7 @@ export function parseEmbedded(
 
   let parsed: unknown
   try {
-    parsed = JSON.parse(trimmed)
+    parsed = parse(trimmed)
   } catch {
     return null
   }
@@ -95,7 +107,7 @@ export function parseEmbedded(
 }
 
 function isPlainContainer(value: unknown): value is Record<string, unknown> | unknown[] {
-  return value !== null && typeof value === 'object'
+  return value !== null && typeof value === 'object' && !isRawNumber(value)
 }
 
 /**
@@ -103,14 +115,14 @@ function isPlainContainer(value: unknown): value is Record<string, unknown> | un
  * after an outer layer is expanded.
  */
 export function findEmbeddedJson(root: unknown, options: EmbeddedOptions = {}): Embedded[] {
-  const { maxDepth, maxStringLength } = { ...DEFAULTS, ...options }
+  const { maxDepth, maxStringLength, parse } = { ...DEFAULTS, ...options }
   const found: Embedded[] = []
 
   const walk = (node: unknown, path: (string | number)[], depth: number): void => {
     if (depth > maxDepth) return
 
     if (typeof node === 'string') {
-      const hit = parseEmbedded(node, maxStringLength)
+      const hit = parseEmbedded(node, maxStringLength, parse)
       if (hit) {
         found.push({
           pointer: toJsonPointer(path),
@@ -158,7 +170,7 @@ export function expandEmbedded(
   root: unknown,
   options: EmbeddedOptions & { only?: ReadonlySet<string> } = {},
 ): ExpandResult {
-  const { maxDepth, maxStringLength } = { ...DEFAULTS, ...options }
+  const { maxDepth, maxStringLength, parse } = { ...DEFAULTS, ...options }
   const only = options.only
   const expanded: Embedded[] = []
 
@@ -169,7 +181,7 @@ export function expandEmbedded(
       const pointer = toJsonPointer(path)
       if (only !== undefined && !only.has(pointer)) return node
 
-      const hit = parseEmbedded(node, maxStringLength)
+      const hit = parseEmbedded(node, maxStringLength, parse)
       if (!hit) return node
 
       expanded.push({
@@ -190,15 +202,43 @@ export function expandEmbedded(
     }
 
     if (isPlainContainer(node)) {
-      const out: Record<string, unknown> = {}
-      for (const [key, child] of Object.entries(node)) {
-        out[key] = transform(child, [...path, key], depth)
-      }
-      return out
+      // fromEntries defines own properties; `out[key] = v` would treat a
+      // "__proto__" key as the prototype setter and drop it from the output.
+      return Object.fromEntries(
+        Object.entries(node).map(([key, child]) => [key, transform(child, [...path, key], depth)]),
+      )
     }
 
     return node
   }
 
   return { value: transform(root, [], 1), expanded }
+}
+
+export interface EmbeddedField {
+  pointer: string
+  dotPath: string
+  rawLength: number
+  /**
+   * The embedded field this one lives inside, if any. It only exists once that
+   * field is expanded, so selecting it alone does nothing.
+   */
+  parent: string | null
+}
+
+/**
+ * Per-field toggles need to know which fields are nested in others: a field
+ * found inside an embedded payload only exists once that payload is expanded,
+ * so its toggle is meaningless until then.
+ */
+export function embeddedFields(found: readonly Embedded[]): EmbeddedField[] {
+  return found.map((field) => {
+    // Nearest enclosing field: the longest other pointer that prefixes this one.
+    let parent: string | null = null
+    for (const other of found) {
+      if (!field.pointer.startsWith(other.pointer + '/')) continue
+      if (parent === null || other.pointer.length > parent.length) parent = other.pointer
+    }
+    return { pointer: field.pointer, dotPath: field.dotPath, rawLength: field.rawLength, parent }
+  })
 }
