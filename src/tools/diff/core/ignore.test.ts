@@ -25,7 +25,10 @@ describe('keysFor', () => {
     expect(sameLine(WS, 'ab', 'a b')).toBe(true)
     expect(sameLine(WS, 'a b', 'a c')).toBe(false)
     expect(sameWord(WS, '  ', '\t')).toBe(true)
-    expect(sameWord(WS, '\r\n', ' ')).toBe(true)
+    expect(sameWord(WS, '\r\n', '\n')).toBe(true)
+    // A moved line break is a real change even under -w, or a changed line
+    // run would end up with nothing highlighted and no chunk to jump to.
+    expect(sameWord(WS, '\n', ' ')).toBe(false)
     expect(sameWord(WS, 'a', 'b')).toBe(false)
   })
 

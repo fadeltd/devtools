@@ -135,6 +135,12 @@ describe('computeDiff', () => {
       expect(a.slice(4, 7)).toBe('bar')
     })
 
+    it('whitespace: a moved line break is still highlighted', () => {
+      const r = withIgnore({ ...NO_IGNORE, whitespace: true }, 'one two\n', 'one\ntwo\n')
+      expect(quads(r.lines)).toHaveLength(1)
+      expect(quads(r.changes).length).toBeGreaterThan(0)
+    })
+
     it('trim: CRLF against LF is no change', () => {
       expect(quads(withIgnore({ ...NO_IGNORE, trim: true }, 'a\r\nb\r\n', 'a\nb\n').lines)).toEqual([])
     })
@@ -180,6 +186,15 @@ describe('computeDiff', () => {
               ([lfA, ltA, lfB, ltB]) => lfA <= fromA && toA <= ltA && lfB <= fromB && toB <= ltB,
             )
             expect(inside).toBe(true)
+          }
+
+          // Every counted run has something to see: a run with no highlight
+          // would inflate the stats with a change the view cannot show.
+          for (const [lfA, ltA, lfB, ltB] of lines) {
+            const shown = changes.some(
+              ([fromA, toA, fromB, toB]) => lfA <= fromA && toA <= ltA && lfB <= fromB && toB <= ltB,
+            )
+            expect(shown).toBe(true)
           }
 
           const key = keys?.line ?? ((s: string) => s)

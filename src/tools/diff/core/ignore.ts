@@ -34,7 +34,11 @@ export function keysFor(o: IgnoreOptions): Keys | undefined {
     : o.trim
       ? (s: string) => fold(s.trim())
       : fold
-  const word = o.whitespace ? (s: string) => (ALL_WHITESPACE.test(s) ? ' ' : fold(s)) : fold
+  // Line breaks stay distinct from spaces: joining or splitting a line is a
+  // real change, and without it that run would have nothing to highlight.
+  const word = o.whitespace
+    ? (s: string) => (s === '\n' || s === '\r\n' ? '\n' : ALL_WHITESPACE.test(s) ? ' ' : fold(s))
+    : fold
   return { line, word }
 }
 
