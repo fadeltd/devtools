@@ -6,6 +6,7 @@ dist/
 tmp
 ROADMAP.md
 TODO.md
+docs/superpowers/
 
 # Stitch design exports: ~3 MB of PNG mockups plus generated HTML. Reference
 # material, not source. DESIGN.md's rules are mirrored in CLAUDE.md and
