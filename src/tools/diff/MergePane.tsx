@@ -3,7 +3,7 @@ import { EditorState, type Extension } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
 import { MergeView, goToNextChunk, goToPreviousChunk, unifiedMergeView } from '@codemirror/merge'
 import { diffTheme } from './theme'
-import { NO_IGNORE } from './core/ignore'
+import type { IgnoreOptions } from './core/ignore'
 import { makeDiffConfig } from './engine'
 
 export interface DiffApi {
@@ -18,6 +18,8 @@ export interface MergePaneProps {
   wrapLines: boolean
   /** Turn off intra-line highlighting on very large inputs. */
   highlightChanges: boolean
+  /** What counts as equal. Changing it rebuilds the view (see below). */
+  ignore: IgnoreOptions
   onChangeLeft: (value: string) => void
   onChangeRight: (value: string) => void
   /** Called with a handle for chunk navigation on mount, and null on unmount. */
@@ -47,6 +49,8 @@ function baseExtensions(wrapLines: boolean): Extension[] {
  */
 export function MergePane(props: MergePaneProps) {
   const { mode, wrapLines, highlightChanges, left, right, onReady } = props
+  // Primitives, so a fresh `ignore` object each render does not rebuild the view.
+  const { whitespace, case: ignoreCase, trim } = props.ignore
   const host = useRef<HTMLDivElement>(null)
   const mergeRef = useRef<MergeView | null>(null)
   const unifiedRef = useRef<EditorView | null>(null)
@@ -64,7 +68,13 @@ export function MergePane(props: MergePaneProps) {
     if (!parent) return
 
     const collapseUnchanged = { margin: 3, minSize: 4 }
-    const diffConfig = makeDiffConfig({ ignore: NO_IGNORE, refine: highlightChanges })
+    // MergeView.reconfigure({ diffConfig }) swaps the config but does not
+    // recompute chunks until the next edit, so option changes rebuild the
+    // view instead -- the same as mode and wrapping already do.
+    const diffConfig = makeDiffConfig({
+      ignore: { whitespace, case: ignoreCase, trim },
+      refine: highlightChanges,
+    })
 
     if (mode === 'split') {
       const view = new MergeView({
@@ -126,7 +136,7 @@ export function MergePane(props: MergePaneProps) {
       view.destroy()
       unifiedRef.current = null
     }
-  }, [mode, wrapLines, highlightChanges])
+  }, [mode, wrapLines, highlightChanges, whitespace, ignoreCase, trim])
 
   // Push external text changes in without clobbering an in-progress edit.
   useEffect(() => {

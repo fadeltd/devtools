@@ -25,6 +25,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   cannot hold exactly, like `12345678901234567890`, format and minify keep
   them digit for digit instead of rounding them. This includes numbers inside
   expanded embedded JSON.
+- Diff: Ignore whitespace, Ignore case and Trim toggles. They change what
+  counts as a difference, never the text you pasted, so highlights still land
+  on your original characters. When nothing else differs, the badge says what
+  it ignored.
 
 ### Changed
 - Diff: highlights inside a changed line now cover whole words and

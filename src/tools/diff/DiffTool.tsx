@@ -10,7 +10,7 @@ import { useToolUsageTracker } from '@/lib/prefs'
 import { readTextFile } from '@/lib/util/filedrop'
 import { formatCount } from '@/lib/util/bytes'
 import { MergePane, type DiffApi } from './MergePane'
-import { NO_IGNORE } from './core/ignore'
+import { ignoreLabel, type IgnoreOptions } from './core/ignore'
 import { diffFor } from './engine'
 import { assessSize, diffStats } from './core/stats'
 
@@ -19,9 +19,26 @@ interface State {
   right: string
   mode: 'split' | 'unified'
   wrapLines: boolean
+  // Added after launch. Stored state is merged over INITIAL, so older saves
+  // pick up the defaults without a stateVersion bump.
+  ignoreWhitespace: boolean
+  ignoreCase: boolean
+  trim: boolean
 }
 
-const INITIAL: State = { left: '', right: '', mode: 'split', wrapLines: false }
+const INITIAL: State = {
+  left: '',
+  right: '',
+  mode: 'split',
+  wrapLines: false,
+  ignoreWhitespace: false,
+  ignoreCase: false,
+  trim: false,
+}
+
+function ignoreOf(s: State): IgnoreOptions {
+  return { whitespace: s.ignoreWhitespace, case: s.ignoreCase, trim: s.trim }
+}
 
 export default function DiffTool() {
   useToolUsageTracker('diff')
@@ -38,9 +55,11 @@ export default function DiffTool() {
   const stats = useMemo(() => {
     if (size.tier === 'refuse') return null
     if (deferred.left === '' && deferred.right === '') return null
-    const settings = { ignore: NO_IGNORE, refine: size.tier === 'ok' }
+    const settings = { ignore: ignoreOf(deferred), refine: size.tier === 'ok' }
     return diffStats(deferred.left, deferred.right, diffFor(deferred.left, deferred.right, settings).lines)
   }, [deferred, size.tier])
+
+  const ignoring = ignoreLabel(ignoreOf(state))
 
   // Side-by-side monospace panes are unusable at phone width, so the split
   // toggle is hidden below md and the view is forced to unified there.
@@ -124,11 +143,26 @@ export default function DiffTool() {
           >
             Wrap
           </Toggle>
+          <Toggle
+            checked={state.ignoreWhitespace}
+            onChange={(v) => setState((p) => ({ ...p, ignoreWhitespace: v }))}
+          >
+            Ignore whitespace
+          </Toggle>
+          <Toggle
+            checked={state.ignoreCase}
+            onChange={(v) => setState((p) => ({ ...p, ignoreCase: v }))}
+          >
+            Ignore case
+          </Toggle>
+          <Toggle checked={state.trim} onChange={(v) => setState((p) => ({ ...p, trim: v }))}>
+            Trim
+          </Toggle>
 
           {stats !== null && (
             <span className="flex items-center gap-1.5 font-mono text-[12px]">
               {stats.identical ? (
-                <Badge>identical</Badge>
+                <Badge>{ignoring === null ? 'identical' : `identical (ignoring ${ignoring})`}</Badge>
               ) : (
                 <>
                   {stats.addedLines > 0 && <span className="text-add">+{stats.addedLines}</span>}
@@ -198,6 +232,7 @@ export default function DiffTool() {
               mode={effectiveMode}
               wrapLines={state.wrapLines}
               highlightChanges={size.tier === 'ok'}
+              ignore={ignoreOf(state)}
               onChangeLeft={(value) => setState((p) => ({ ...p, left: value }))}
               onChangeRight={(value) => setState((p) => ({ ...p, right: value }))}
             />
