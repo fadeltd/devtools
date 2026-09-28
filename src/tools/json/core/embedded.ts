@@ -190,11 +190,11 @@ export function expandEmbedded(
     }
 
     if (isPlainContainer(node)) {
-      const out: Record<string, unknown> = {}
-      for (const [key, child] of Object.entries(node)) {
-        out[key] = transform(child, [...path, key], depth)
-      }
-      return out
+      // fromEntries defines own properties; `out[key] = v` would treat a
+      // "__proto__" key as the prototype setter and drop it from the output.
+      return Object.fromEntries(
+        Object.entries(node).map(([key, child]) => [key, transform(child, [...path, key], depth)]),
+      )
     }
 
     return node

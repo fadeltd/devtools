@@ -116,6 +116,15 @@ describe('findEmbeddedJson', () => {
 })
 
 describe('expandEmbedded', () => {
+  it('keeps a "__proto__" key instead of assigning the prototype', () => {
+    // JSON.parse makes "__proto__" an own key; `out[key] = v` would instead
+    // set the prototype, silently dropping the key from the output.
+    const doc = JSON.parse('{"__proto__":{"x":1},"a":"{\\"b\\":1}"}') as unknown
+    const { value } = expandEmbedded(doc)
+    expect(JSON.stringify(value)).toBe('{"__proto__":{"x":1},"a":{"b":1}}')
+    expect(Object.getPrototypeOf(value)).toBe(Object.prototype)
+  })
+
   it('replaces the string with the parsed value', () => {
     const doc = { level: 'info', payload: '{"userId":42}' }
     const { value, expanded } = expandEmbedded(doc)

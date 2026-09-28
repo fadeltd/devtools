@@ -14,6 +14,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   scroll smoothly. It opens a couple of levels deep, and has Expand all /
   Collapse all and full keyboard navigation (arrow keys, Home/End, Enter).
 
+### Fixed
+- JSON Formatter: with "Expand embedded JSON" on, a key named `__proto__`
+  was silently dropped from the output. It is now kept like any other key.
+
 ## [0.3.0] — 2026-09-25
 
 ### Added
