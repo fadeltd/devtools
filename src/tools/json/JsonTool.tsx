@@ -3,7 +3,7 @@ import { AlertTriangle, Braces, CheckCircle2, Wand2 } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { TwoPane } from '@/components/layout/TwoPane'
 import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
+import { Button, Segmented } from '@/components/ui/Button'
 import { CodeArea } from '@/components/ui/CodeArea'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { Select, Toggle } from '@/components/ui/Select'
@@ -21,10 +21,18 @@ import {
   minifyValue,
   ndjsonToArray,
   unescapeJsonString,
+  withSortedKeys,
   type Indent,
 } from './core/format'
+import { TreeView } from './TreeView'
 
 type Mode = 'format' | 'minify' | 'escape' | 'unescape'
+type View = 'text' | 'tree'
+
+const VIEWS = [
+  { value: 'text', label: 'Text' },
+  { value: 'tree', label: 'Tree' },
+] as const
 
 interface State {
   text: string
@@ -33,6 +41,7 @@ interface State {
   sortKeys: boolean
   lenient: boolean
   expandEmbedded: boolean
+  view: View
 }
 
 const INITIAL: State = {
@@ -42,6 +51,7 @@ const INITIAL: State = {
   sortKeys: false,
   lenient: false,
   expandEmbedded: false,
+  view: 'text',
 }
 
 function IssueCard({ issue }: { issue: JsonIssue }) {
@@ -105,8 +115,17 @@ export default function JsonTool() {
   const precisionLoss = numberIssues.filter((n) => n.kind === 'precision')
   const reformatted = numberIssues.filter((n) => n.kind === 'reformatted')
 
+  // Expansion is a view over the parsed value; the source text is untouched,
+  // so toggling it off restores the original exactly. Sorting happens here too,
+  // so the text output and the tree show the same document.
+  const shown = useMemo(() => {
+    if (analysis.value === undefined) return undefined
+    const value = deferred.expandEmbedded ? expandEmbedded(analysis.value).value : analysis.value
+    return deferred.sortKeys ? withSortedKeys(value) : value
+  }, [analysis.value, deferred.expandEmbedded, deferred.sortKeys])
+
   const output = useMemo(() => {
-    const { text, mode, indent, sortKeys } = deferred
+    const { text, mode, indent } = deferred
     if (text === '') return ''
 
     if (mode === 'escape') return escapeAsJsonString(text, { ascii: false })
@@ -114,18 +133,12 @@ export default function JsonTool() {
       const r = unescapeJsonString(text)
       return r.ok ? r.value : ''
     }
-    if (analysis.value === undefined) return ''
-
-    // Expansion is a view over the parsed value; the source text is untouched,
-    // so toggling it off restores the original exactly.
-    const value = deferred.expandEmbedded
-      ? expandEmbedded(analysis.value).value
-      : analysis.value
+    if (shown === undefined) return ''
 
     return mode === 'minify'
-      ? minifyValue(value, { sortKeys })
-      : formatValue(value, { indent, sortKeys })
-  }, [analysis.value, deferred])
+      ? minifyValue(shown, { sortKeys: false })
+      : formatValue(shown, { indent, sortKeys: false })
+  }, [shown, deferred])
 
   const unescapeError =
     deferred.mode === 'unescape' && deferred.text !== ''
@@ -137,6 +150,7 @@ export default function JsonTool() {
 
   const isTextMode = state.mode === 'escape' || state.mode === 'unescape'
   const valid = analysis.flavor === 'json' || analysis.flavor === 'jsonc'
+  const showTree = state.mode === 'format' && state.view === 'tree' && valid && shown !== undefined
 
   function applyToInput(next: string) {
     setState((p) => ({ ...p, text: next }))
@@ -191,6 +205,14 @@ export default function JsonTool() {
               <option value="4">4 spaces</option>
               <option value="tab">Tabs</option>
             </Select>
+          )}
+
+          {state.mode === 'format' && (
+            <Segmented
+              value={state.view}
+              options={VIEWS}
+              onChange={(view) => setState((p) => ({ ...p, view }))}
+            />
           )}
 
           {!isTextMode && (
@@ -356,6 +378,8 @@ export default function JsonTool() {
                   <IssueCard key={`${issue.offset}:${issue.length}:${issue.code}`} issue={issue} />
                 ))}
               </div>
+            ) : showTree ? (
+              <TreeView value={shown} />
             ) : (
               <CodeArea value={output} readOnly placeholder="Output appears here" />
             )}

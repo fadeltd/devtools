@@ -7,7 +7,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- JSON Formatter: a Tree view alongside the text output. It shows the same
+  document the text does, with sorted keys and expanded embedded JSON, as a
+  collapsible tree. Only the rows on screen are rendered, so large documents
+  scroll smoothly. It opens a couple of levels deep, and has Expand all /
+  Collapse all and full keyboard navigation (arrow keys, Home/End, Enter).
 
 ## [0.3.0] — 2026-09-25
 

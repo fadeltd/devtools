@@ -22,6 +22,11 @@ export function sortKeysDeep(value: unknown, cmp: (a: string, b: string) => numb
 
 const keyCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'variant' }).compare
 
+/** Deep key sort with the same collator the formatter uses. */
+export function withSortedKeys(value: unknown): unknown {
+  return sortKeysDeep(value, keyCollator)
+}
+
 export function formatValue(value: unknown, o: FormatOptions): string {
   const prepared = o.sortKeys ? sortKeysDeep(value, keyCollator) : value
   return JSON.stringify(prepared, null, indentValue(o.indent))
