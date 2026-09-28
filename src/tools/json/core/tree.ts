@@ -11,13 +11,13 @@
  */
 
 import { escapePointerToken } from './embedded'
+import { isRawNumber, rawNumberText } from './rawjson'
 
 export type NodeKind = 'object' | 'array' | 'string' | 'number' | 'boolean' | 'null'
 
 export interface FlatNode {
   /** RFC 6901 pointer; '' for the root. */
   pointer: string
-  path: (string | number)[]
   depth: number
   /** Object key or array index; null for the root. */
   key: string | number | null
@@ -40,6 +40,7 @@ export const PREVIEW_MAX = 1000
 export function kindOf(value: unknown): NodeKind {
   if (value === null) return 'null'
   if (Array.isArray(value)) return 'array'
+  if (isRawNumber(value)) return 'number'
   switch (typeof value) {
     case 'object':
       return 'object'
@@ -70,6 +71,7 @@ function preview(value: unknown, kind: NodeKind): string {
     // Drop the closing quote, mark the cut, and close it again.
     return `${JSON.stringify(s.slice(0, PREVIEW_MAX)).slice(0, -1)}…"`
   }
+  if (isRawNumber(value)) return rawNumberText(value)
   return JSON.stringify(value) ?? 'null'
 }
 
@@ -86,7 +88,6 @@ function childPointer(parent: string, key: string | number): string {
 
 interface Frame {
   value: unknown
-  path: (string | number)[]
   pointer: string
   depth: number
   key: string | number | null
@@ -100,7 +101,7 @@ interface Frame {
  */
 export function flattenTree(root: unknown, expanded: ReadonlySet<string>): FlatNode[] {
   const rows: FlatNode[] = []
-  const stack: Frame[] = [{ value: root, path: [], pointer: '', depth: 0, key: null, parent: -1 }]
+  const stack: Frame[] = [{ value: root, pointer: '', depth: 0, key: null, parent: -1 }]
 
   while (stack.length > 0) {
     const frame = stack.pop()!
@@ -111,7 +112,6 @@ export function flattenTree(root: unknown, expanded: ReadonlySet<string>): FlatN
 
     rows.push({
       pointer: frame.pointer,
-      path: frame.path,
       depth: frame.depth,
       key: frame.key,
       kind,
@@ -128,7 +128,6 @@ export function flattenTree(root: unknown, expanded: ReadonlySet<string>): FlatN
       const [key, value] = entries[i]!
       stack.push({
         value,
-        path: [...frame.path, key],
         pointer: childPointer(frame.pointer, key),
         depth: frame.depth + 1,
         key,
@@ -138,6 +137,17 @@ export function flattenTree(root: unknown, expanded: ReadonlySet<string>): FlatN
   }
 
   return rows
+}
+
+/**
+ * The key path of a row, rebuilt from its parent links. Rows do not carry one:
+ * copying a path per row costs O(depth) each, and only the selected row ever
+ * needs it.
+ */
+export function pathOf(rows: readonly FlatNode[], index: number): (string | number)[] {
+  const path: (string | number)[] = []
+  for (let i = index; i > 0; i = rows[i]!.parent) path.push(rows[i]!.key!)
+  return path.toReversed()
 }
 
 export interface ExpandOptions {

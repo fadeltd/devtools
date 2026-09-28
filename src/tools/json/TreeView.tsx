@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Keyboa
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { CopyButton } from '@/components/ui/CopyButton'
 import { formatCount } from '@/lib/util/bytes'
 import { cn } from '@/lib/util/cn'
 import {
@@ -9,9 +10,12 @@ import {
   countNodes,
   defaultExpanded,
   flattenTree,
+  pathOf,
   toggle,
   type FlatNode,
 } from './core/tree'
+import { toDotPath, toJsonPointer } from './core/embedded'
+import { toJqPath } from './core/paths'
 
 // Matches the palette rows: a 44px touch target below md, the 22px code-table
 // grid from DESIGN.md above it.
@@ -102,6 +106,14 @@ export function TreeView({ value }: { value: unknown }) {
     [rows, selected],
   )
 
+  // Copy targets for the selected row. Shown in the header rather than on the
+  // row itself, so they are reachable on touch and never hover-only.
+  const selectedPaths = useMemo(() => {
+    if (selectedIndex < 0) return null
+    const path = pathOf(rows, selectedIndex)
+    return { pointer: toJsonPointer(path), dot: toDotPath(path), jq: toJqPath(path) }
+  }, [rows, selectedIndex])
+
   const scrollRef = useRef<HTMLDivElement>(null)
   // The rule guards React Compiler memoisation, and this build does not run the
   // compiler. TanStack Virtual is the documented exception it flags.
@@ -189,6 +201,24 @@ export function TreeView({ value }: { value: unknown }) {
         <Button variant="ghost" onClick={() => setExpanded(new Set())}>
           Collapse all
         </Button>
+      </div>
+
+      <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-3 py-1">
+        {selectedPaths === null ? (
+          <span className="py-1 text-[12px] text-faint">Select a row to copy its path</span>
+        ) : (
+          <>
+            <code
+              className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted"
+              title={selectedPaths.pointer === '' ? '(root)' : selectedPaths.pointer}
+            >
+              {selectedPaths.dot}
+            </code>
+            <CopyButton value={selectedPaths.pointer || '/'} label="Pointer" />
+            <CopyButton value={selectedPaths.dot} label="Path" />
+            <CopyButton value={selectedPaths.jq} label="jq" />
+          </>
+        )}
       </div>
 
       <div

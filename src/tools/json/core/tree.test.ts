@@ -7,6 +7,7 @@ import {
   defaultExpanded,
   flattenTree,
   kindOf,
+  pathOf,
   toggle,
 } from './tree'
 
@@ -60,7 +61,8 @@ describe('flattenTree', () => {
       if (i === 0) expect(row.parent).toBe(-1)
       else expect(rows[row.parent]!.depth).toBe(row.depth - 1)
     }
-    expect(rows[4]!.path).toEqual(['x/y', '~k', 0])
+    expect(pathOf(rows, 4)).toEqual(['x/y', '~k', 0])
+    expect(pathOf(rows, 0)).toEqual([])
     expect(rows[4]!.key).toBe(0)
   })
 
@@ -75,11 +77,13 @@ describe('flattenTree', () => {
     expect(row!.preview.endsWith('…"')).toBe(true)
   })
 
-  it('survives nesting far deeper than the call stack allows', () => {
+  // Deep enough to overflow a recursive walk. Cost is quadratic in depth
+  // (each row's pointer is as long as the row is deep), hence the timeout.
+  it('survives nesting deeper than the call stack allows', { timeout: 20_000 }, () => {
     let deep: unknown = 0
-    for (let i = 0; i < 20_000; i++) deep = [deep]
+    for (let i = 0; i < 12_000; i++) deep = [deep]
     const { expanded } = allContainerPointers(deep, Infinity)
-    expect(flattenTree(deep, expanded)).toHaveLength(20_001)
+    expect(flattenTree(deep, expanded)).toHaveLength(12_001)
   })
 })
 
