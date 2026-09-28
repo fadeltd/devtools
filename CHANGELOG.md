@@ -29,6 +29,18 @@ Nothing yet.
   cannot hold exactly, like `12345678901234567890`, format and minify keep
   them digit for digit instead of rounding them. This includes numbers inside
   expanded embedded JSON.
+- Diff: Ignore whitespace, Ignore case and Trim toggles. They change what
+  counts as a difference, never the text you pasted, so highlights still land
+  on your original characters. When nothing else differs, the badge says what
+  it ignored.
+- Diff: copy the comparison as a unified patch that applies with `patch`.
+  It is always exact, so the Ignore toggles never change it.
+
+### Changed
+- Diff: highlights inside a changed line now cover whole words and
+  punctuation instead of stray characters, and the change count counts
+  changed blocks of lines (what Alt+↓ steps through) rather than individual
+  edits.
 
 ### Fixed
 - JSON Formatter: with "Expand embedded JSON" on, a key named `__proto__`
