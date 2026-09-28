@@ -1,5 +1,5 @@
 import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react'
-import { ArrowLeftRight, ChevronDown, ChevronUp, Upload } from 'lucide-react'
+import { ArrowLeftRight, Check, ChevronDown, ChevronUp, FileDiff, Upload } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { Badge } from '@/components/ui/Badge'
 import { Button, Segmented } from '@/components/ui/Button'
@@ -9,8 +9,10 @@ import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
 import { readTextFile } from '@/lib/util/filedrop'
 import { formatCount } from '@/lib/util/bytes'
+import { copyText } from '@/lib/util/clipboard'
 import { MergePane, type DiffApi } from './MergePane'
 import { ignoreLabel, type IgnoreOptions } from './core/ignore'
+import { toUnifiedPatch } from './core/patch'
 import { diffFor } from './engine'
 import { assessSize, diffStats } from './core/stats'
 
@@ -47,7 +49,8 @@ export default function DiffTool() {
   const onReady = useCallback((next: DiffApi | null) => {
     api.current = next
   }, [])
-  const [dropError, setDropError] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [patchCopied, setPatchCopied] = useState(false)
 
   const deferred = useDeferredValue(state)
   const size = useMemo(() => assessSize(deferred.left, deferred.right), [deferred])
@@ -70,6 +73,22 @@ export default function DiffTool() {
     setState((p) => ({ ...p, left: p.right, right: p.left }))
   }
 
+  function copyPatch() {
+    // Built and written inside the click handler: Safari refuses a clipboard
+    // write that happens anywhere else.
+    const patch = toUnifiedPatch(state.left, state.right)
+    if (patch === null) {
+      setError('These inputs are too different to build a patch in time. Use `diff -u` on the command line.')
+      return
+    }
+    setError(null)
+    void copyText(patch).then((ok) => {
+      if (!ok) return
+      setPatchCopied(true)
+      setTimeout(() => setPatchCopied(false), 1200)
+    })
+  }
+
   async function pick(side: 'left' | 'right') {
     const input = document.createElement('input')
     input.type = 'file'
@@ -80,10 +99,10 @@ export default function DiffTool() {
         if (!file) return
         void readTextFile(file).then((r) => {
           if (!r.ok) {
-            setDropError(r.reason)
+            setError(r.reason)
             return
           }
-          setDropError(null)
+          setError(null)
           setState((p) => ({ ...p, [side]: r.file.text }))
         })
       },
@@ -199,6 +218,18 @@ export default function DiffTool() {
           <Button onClick={swap} title="Swap sides (Cmd+Shift+S)">
             <ArrowLeftRight size={14} aria-hidden />
           </Button>
+          <Button
+            onClick={copyPatch}
+            disabled={state.left === state.right || size.tier === 'refuse'}
+            title="Copy as a unified patch. Always exact: the Ignore toggles do not apply."
+          >
+            {patchCopied ? (
+              <Check size={14} className="text-add" aria-hidden />
+            ) : (
+              <FileDiff size={14} aria-hidden />
+            )}
+            {patchCopied ? 'Copied' : 'Patch'}
+          </Button>
           <Button variant="ghost" onClick={reset}>
             Clear
           </Button>
@@ -206,9 +237,9 @@ export default function DiffTool() {
       }
     >
       <div className="flex h-full min-h-0 flex-col">
-        {dropError !== null && (
+        {error !== null && (
           <div className="shrink-0 border-b border-border px-3 py-1.5 text-[12px] text-del">
-            {dropError}
+            {error}
           </div>
         )}
         {size.reason !== null && (

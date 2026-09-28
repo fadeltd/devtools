@@ -29,6 +29,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   counts as a difference, never the text you pasted, so highlights still land
   on your original characters. When nothing else differs, the badge says what
   it ignored.
+- Diff: copy the comparison as a unified patch that applies with `patch`.
+  It is always exact, so the Ignore toggles never change it.
 
 ### Changed
 - Diff: highlights inside a changed line now cover whole words and
