@@ -7,7 +7,32 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- Diff: Ignore whitespace, Ignore case and Trim toggles. They change what
+  counts as a difference, never the text you pasted, so highlights still land
+  on your original characters. When nothing else differs, the badge says what
+  it ignored.
+- Diff: copy the comparison as a unified patch that applies with `patch`.
+  It is always exact, so the Ignore toggles never change it.
+- Diff: copy a link that opens the same comparison. Both sides are compressed
+  into the part of the link after `#`, which browsers never send to a server,
+  so nothing is uploaded. The link itself contains your text, though: anyone
+  you give it to can read it, and it stays in browser history. Comparisons
+  that compress to more than 8 KB cannot be shared this way; copy the patch
+  instead.
+
+### Changed
+- Diff: highlights inside a changed line now cover whole words and
+  punctuation instead of stray characters, and the change count counts
+  changed blocks of lines (what Alt+↓ steps through) rather than individual
+  edits.
+
+### Fixed
+- Diff: on inputs of a few kilobytes, the side-by-side view could mark every
+  line as changed, including lines identical on both sides. Highlights now
+  come from a line-by-line diff, so unchanged lines stay unmarked.
+- Diff: the side-by-side view did not scroll with the mouse wheel or
+  trackpad; only moving the cursor scrolled it.
 
 ## [0.4.0] — 2026-09-28
 
@@ -29,18 +54,6 @@ Nothing yet.
   cannot hold exactly, like `12345678901234567890`, format and minify keep
   them digit for digit instead of rounding them. This includes numbers inside
   expanded embedded JSON.
-- Diff: Ignore whitespace, Ignore case and Trim toggles. They change what
-  counts as a difference, never the text you pasted, so highlights still land
-  on your original characters. When nothing else differs, the badge says what
-  it ignored.
-- Diff: copy the comparison as a unified patch that applies with `patch`.
-  It is always exact, so the Ignore toggles never change it.
-
-### Changed
-- Diff: highlights inside a changed line now cover whole words and
-  punctuation instead of stray characters, and the change count counts
-  changed blocks of lines (what Alt+↓ steps through) rather than individual
-  edits.
 
 ### Fixed
 - JSON Formatter: with "Expand embedded JSON" on, a key named `__proto__`

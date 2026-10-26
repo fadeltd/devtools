@@ -1,5 +1,5 @@
-import { useCallback, useDeferredValue, useMemo, useRef, useState } from 'react'
-import { ArrowLeftRight, Check, ChevronDown, ChevronUp, FileDiff, Upload } from 'lucide-react'
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
+import { ArrowLeftRight, Check, ChevronDown, ChevronUp, FileDiff, Link, Upload } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { Badge } from '@/components/ui/Badge'
 import { Button, Segmented } from '@/components/ui/Button'
@@ -8,13 +8,14 @@ import { useToolState } from '@/lib/persist/useToolState'
 import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
 import { readTextFile } from '@/lib/util/filedrop'
-import { formatCount } from '@/lib/util/bytes'
+import { formatBytes, formatCount } from '@/lib/util/bytes'
 import { copyText } from '@/lib/util/clipboard'
 import { MergePane, type DiffApi } from './MergePane'
 import { ignoreLabel, type IgnoreOptions } from './core/ignore'
 import { toUnifiedPatch } from './core/patch'
 import { diffFor } from './engine'
 import { assessSize, diffStats } from './core/stats'
+import { MAX_SHARE_CHARS, SHARE_PARAM, decodeShare, encodeShare } from './core/share'
 
 interface State {
   left: string
@@ -42,6 +43,14 @@ function ignoreOf(s: State): IgnoreOptions {
   return { whitespace: s.ignoreWhitespace, case: s.ignoreCase, trim: s.trim }
 }
 
+/** Past this much raw text, no link could fit under the cap; skip compressing it. */
+const MAX_SHARE_SOURCE_CHARS = 1_000_000
+
+/** A ready link, or how big it would have been (null when not worth measuring). */
+type ShareLink = { url: string } | { tooLarge: number | null }
+
+const SHARE_PREFIX = `#${SHARE_PARAM}=`
+
 export default function DiffTool() {
   useToolUsageTracker('diff')
   const { state, setState, reset, hydrating } = useToolState<State>('diff', INITIAL)
@@ -51,8 +60,60 @@ export default function DiffTool() {
   }, [])
   const [error, setError] = useState<string | null>(null)
   const [patchCopied, setPatchCopied] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
+
+  // Opened from a share link: load it over whatever was saved. setState marks
+  // the state dirty, so the async IDB hydration cannot overwrite it afterwards.
+  useEffect(() => {
+    const hash = window.location.hash
+    if (!hash.startsWith(SHARE_PREFIX)) return
+    let cancelled = false
+    void decodeShare(hash).then((shared) => {
+      if (cancelled) return
+      // Drop the fragment so a reload does not reapply it over later edits.
+      // history.state is kept: React Router stores its index there.
+      window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
+      if (shared === null) {
+        setError('This share link is damaged or from a newer version.')
+        return
+      }
+      setState((p) => ({ ...p, left: shared.left, right: shared.right }))
+      setNotice('Opened a shared diff. It replaced your previous comparison.')
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [setState])
 
   const deferred = useDeferredValue(state)
+
+  // Built ahead of the click: compression is async, and Safari refuses a
+  // clipboard write that happens after an await.
+  const { left: shareLeft, right: shareRight } = deferred
+  const isEmpty = shareLeft === '' && shareRight === ''
+  const isHuge = shareLeft.length + shareRight.length > MAX_SHARE_SOURCE_CHARS
+  const [encoded, setEncoded] = useState<{ left: string; right: string; value: string } | null>(null)
+  useEffect(() => {
+    if (isEmpty || isHuge) return
+    let cancelled = false
+    void encodeShare(shareLeft, shareRight).then((value) => {
+      if (!cancelled) setEncoded({ left: shareLeft, right: shareRight, value })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [shareLeft, shareRight, isEmpty, isHuge])
+
+  // null while empty, or while the current text is still being encoded.
+  let share: ShareLink | null = null
+  if (isHuge) share = { tooLarge: null }
+  else if (!isEmpty && encoded?.left === shareLeft && encoded.right === shareRight) {
+    share =
+      encoded.value.length > MAX_SHARE_CHARS
+        ? { tooLarge: encoded.value.length }
+        : { url: window.location.origin + window.location.pathname + SHARE_PREFIX + encoded.value }
+  }
   const size = useMemo(() => assessSize(deferred.left, deferred.right), [deferred])
 
   const stats = useMemo(() => {
@@ -86,6 +147,23 @@ export default function DiffTool() {
       if (!ok) return
       setPatchCopied(true)
       setTimeout(() => setPatchCopied(false), 1200)
+    })
+  }
+
+  function copyLink() {
+    if (share === null) return
+    if ('tooLarge' in share) {
+      const measured = share.tooLarge === null ? '' : `${formatBytes(share.tooLarge)} encoded, `
+      setError(
+        `Too large to share as a link (${measured}limit ${formatBytes(MAX_SHARE_CHARS, 0)}). Copy the patch instead.`,
+      )
+      return
+    }
+    setError(null)
+    void copyText(share.url).then((ok) => {
+      if (!ok) return
+      setLinkCopied(true)
+      setTimeout(() => setLinkCopied(false), 1200)
     })
   }
 
@@ -230,6 +308,18 @@ export default function DiffTool() {
             )}
             {patchCopied ? 'Copied' : 'Patch'}
           </Button>
+          <Button
+            onClick={copyLink}
+            disabled={share === null}
+            title="Copy a link containing both sides. Nothing is uploaded, but anyone with the link can read it."
+          >
+            {linkCopied ? (
+              <Check size={14} className="text-add" aria-hidden />
+            ) : (
+              <Link size={14} aria-hidden />
+            )}
+            {linkCopied ? 'Copied' : 'Link'}
+          </Button>
           <Button variant="ghost" onClick={reset}>
             Clear
           </Button>
@@ -240,6 +330,14 @@ export default function DiffTool() {
         {error !== null && (
           <div className="shrink-0 border-b border-border px-3 py-1.5 text-[12px] text-del">
             {error}
+          </div>
+        )}
+        {notice !== null && (
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-3 py-1.5 text-[12px] text-muted">
+            {notice}
+            <Button variant="ghost" onClick={() => setNotice(null)}>
+              Dismiss
+            </Button>
           </div>
         )}
         {size.reason !== null && (
