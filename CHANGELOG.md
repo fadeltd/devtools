@@ -7,6 +7,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.5.0] — 2026-10-26
+
 ### Added
 - Diff: Ignore whitespace, Ignore case and Trim toggles. They change what
   counts as a difference, never the text you pasted, so highlights still land
