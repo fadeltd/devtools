@@ -1,0 +1,54 @@
+name: Tool or feature request
+description: Suggest a new tool, or something an existing tool should do.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This project makes one promise: **nothing you paste ever leaves the browser.** So some requests are a standing no, however useful they are:
+
+        - anything that needs a server, a fetch proxy, or a third-party request (e.g. "analyse this URL")
+        - libraries that need `eval` or `new Function`, which the Content Security Policy forbids
+        - accounts, sync, or storing your data anywhere but your own browser
+
+        New tools are added when someone actually reaches for one and it isn't there, so the most useful thing you can tell us is what you were doing at the time.
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of request?
+      options:
+        - A new tool
+        - Improve an existing tool
+    validations:
+      required: true
+
+  - type: textarea
+    id: moment
+    attributes:
+      label: What were you doing when you reached for it?
+      description: The real task, e.g. "checking whether a webhook signature from Stripe matches".
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What should it do?
+      description: Inputs, outputs and options. If an existing site does this, a link helps.
+    validations:
+      required: true
+
+  - type: textarea
+    id: edge-cases
+    attributes:
+      label: Edge cases that other tools get wrong
+      description: Optional. This is where a tool here earns its place, e.g. trailing newlines, CRLF, Unicode normalisation, numbers past 2^53.
+
+  - type: checkboxes
+    id: local-only
+    attributes:
+      label: Fits the promise
+      options:
+        - label: This can work entirely in the browser, with no server, proxy or third-party request.
+          required: true
