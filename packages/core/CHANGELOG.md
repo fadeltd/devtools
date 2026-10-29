@@ -6,7 +6,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- `/json`: `selectPath(root, path)` narrows a document to the node a path points at. The path can be a JSON pointer, a dot path or a jq path, and the result is `{ ok, value, path }` with array steps as numbers. When nothing matches, it returns a message saying where the walk stopped, written in the same path style that was typed. Also added `detectPathFlavor` and `formatPath`.
+- `/json`: `parseDotPath` also reads a JSONPath-style `$.` or `$[` root.
 
 ## [0.2.0] — 2026-10-29
 
