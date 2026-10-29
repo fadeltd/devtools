@@ -25,3 +25,8 @@ export async function readTextFile(file: File): Promise<DropResult> {
     return { ok: false, reason: `Could not read “${file.name}”.` }
   }
 }
+
+/** The first `n` bytes of a file, for sniffing its type without reading all of it. */
+export async function readFileHead(file: Blob, n = 4096): Promise<Uint8Array> {
+  return new Uint8Array(await file.slice(0, n).arrayBuffer())
+}

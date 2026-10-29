@@ -6,7 +6,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- Base64: encode images and other files. Drop a file on the page, paste a screenshot, or use Choose file. You get a preview with the real type and pixel size, and a warning when the file's name doesn't match its contents (for example, a JPEG saved as `.png`).
+- Base64: copy a file as a `data:` URI, an `<img>` tag with its size and alt text, a CSS `url()`, or plain base64.
+- Base64: when decoded base64 turns out to be an image, you see the image and can download it, instead of a hex dump.
+- Base64: files up to 1 MB show their full output. Files up to 25 MB show the first 2 KB to keep the page responsive; Copy and Download still give you all of it. Larger files are refused before they're read.
 
 ## [0.6.1] — 2026-10-29
 

@@ -94,6 +94,7 @@ Each of these is a silent data-corruption bug, not a style preference:
 ### Markdown
 
 - **Never hard-wrap prose in a Markdown file.** Write each paragraph, list item and changelog bullet as one line, however long, and let the editor soft-wrap it. This applies to `CHANGELOG.md`, `README.md`, this file, `ROADMAP.md`, `TODO.md`, and any plan or spec you write. A fixed-width wrap means every later edit reflows the whole paragraph, which buries the real change in the diff. Code blocks and tables keep their own line structure.
+- **The same goes for commit message bodies and PR descriptions.** Keep the subject line short, then write each body paragraph or bullet as one line; GitHub and `git log` wrap it for display.
 
 ## Toolchain notes
 
