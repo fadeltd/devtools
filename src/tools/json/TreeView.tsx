@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, ListFilter } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { formatCount } from '@/lib/util/bytes'
@@ -13,6 +13,7 @@ import {
   pathOf,
   toggle,
   type FlatNode,
+  type PathSegment,
   toDotPath,
   toJsonPointer,
   toJqPath,
@@ -75,7 +76,18 @@ function RowValue({ row }: { row: FlatNode }) {
   )
 }
 
-export function TreeView({ value }: { value: unknown }) {
+const ROOT: readonly PathSegment[] = []
+
+export function TreeView({
+  value,
+  basePath = ROOT,
+  onFilter,
+}: {
+  value: unknown
+  /** Where `value` sits in the whole document, so copied paths stay absolute. */
+  basePath?: readonly PathSegment[]
+  onFilter?: (path: PathSegment[]) => void
+}) {
   const rowHeight = useRowHeight()
 
   const [expansion, setExpansion] = useState<Expansion>(() => ({
@@ -111,9 +123,16 @@ export function TreeView({ value }: { value: unknown }) {
   // row itself, so they are reachable on touch and never hover-only.
   const selectedPaths = useMemo(() => {
     if (selectedIndex < 0) return null
-    const path = pathOf(rows, selectedIndex)
-    return { pointer: toJsonPointer(path), dot: toDotPath(path), jq: toJqPath(path) }
-  }, [rows, selectedIndex])
+    const relative = pathOf(rows, selectedIndex)
+    const path = [...basePath, ...relative]
+    return {
+      path,
+      isViewRoot: relative.length === 0,
+      pointer: toJsonPointer(path),
+      dot: toDotPath(path),
+      jq: toJqPath(path),
+    }
+  }, [rows, selectedIndex, basePath])
 
   const scrollRef = useRef<HTMLDivElement>(null)
   // The rule guards React Compiler memoisation, and this build does not run the
@@ -218,6 +237,17 @@ export function TreeView({ value }: { value: unknown }) {
             <CopyButton value={selectedPaths.pointer || '/'} label="Pointer" />
             <CopyButton value={selectedPaths.dot} label="Path" />
             <CopyButton value={selectedPaths.jq} label="jq" />
+            {onFilter !== undefined && (
+              <Button
+                variant="ghost"
+                disabled={selectedPaths.isViewRoot}
+                onClick={() => onFilter(selectedPaths.path)}
+                title="Show only this node, in the tree and the text output"
+              >
+                <ListFilter size={14} aria-hidden />
+                Filter
+              </Button>
+            )}
           </>
         )}
       </div>

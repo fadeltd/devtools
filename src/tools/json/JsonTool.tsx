@@ -1,6 +1,6 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { AlertTriangle, Braces, CheckCircle2, GitCompare, Wand2 } from 'lucide-react'
+import { AlertTriangle, ArrowUp, Braces, CheckCircle2, GitCompare, ListFilter, Wand2, X } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { TwoPane } from '@/components/layout/TwoPane'
 import { Badge } from '@/components/ui/Badge'
@@ -35,6 +35,12 @@ import {
   unescapeJsonString,
   withSortedKeys,
   type Indent,
+  formatPath,
+  selectPath,
+  toJqPath,
+  toJsonPointer,
+  type PathSegment,
+  type Selection,
 } from '@fadeltd/devtools-core/json'
 import { TreeView } from './TreeView'
 
@@ -57,6 +63,8 @@ interface State {
   /** When not expanding all: the pointers picked one by one. */
   expandPointers: string[]
   view: View
+  /** Path the output is narrowed to, as typed; '' shows the whole document. */
+  filter: string
 }
 
 const INITIAL: State = {
@@ -68,6 +76,7 @@ const INITIAL: State = {
   expandEmbedded: false,
   expandPointers: [],
   view: 'text',
+  filter: '',
 }
 
 function IssueCard({ issue }: { issue: JsonIssue }) {
@@ -105,6 +114,74 @@ function IssueCard({ issue }: { issue: JsonIssue }) {
       </pre>
 
       {issue.hint !== null && <p className="mt-1 text-[12px] text-muted">{issue.hint}</p>}
+    </div>
+  )
+}
+
+function FilterBar({
+  value,
+  selection,
+  onChange,
+}: {
+  value: string
+  selection: Selection
+  onChange: (next: string) => void
+}) {
+  const narrowed = selection.ok && selection.path.length > 0
+  return (
+    <div className="shrink-0 border-b border-border px-3 py-1.5">
+      <div className="flex items-center gap-2">
+        <label
+          htmlFor="json-filter"
+          className="flex shrink-0 items-center gap-1 text-[12px] text-muted"
+        >
+          <ListFilter size={14} aria-hidden />
+          Filter
+        </label>
+        <input
+          id="json-filter"
+          className={cn(
+            'min-h-11 min-w-0 flex-1 rounded-[4px] border bg-bg px-2 font-mono text-fg placeholder:text-faint md:min-h-7',
+            selection.ok ? 'border-border' : 'border-del/60',
+          )}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder=".items[0] · items[0].id · /items/0"
+          aria-invalid={!selection.ok}
+          aria-describedby={selection.ok ? undefined : 'json-filter-error'}
+          spellCheck={false}
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+        />
+        {narrowed && (
+          <Button
+            variant="ghost"
+            className="min-w-11 justify-center md:min-w-7"
+            onClick={() => onChange(formatPath(selection.path.slice(0, -1), selection.flavor))}
+            title="Widen to the parent node"
+            aria-label="Up one level"
+          >
+            <ArrowUp size={14} aria-hidden />
+          </Button>
+        )}
+        {value !== '' && (
+          <Button
+            variant="ghost"
+            className="min-w-11 justify-center md:min-w-7"
+            onClick={() => onChange('')}
+            title="Show the whole document"
+            aria-label="Clear filter"
+          >
+            <X size={14} aria-hidden />
+          </Button>
+        )}
+      </div>
+      {!selection.ok && (
+        <p id="json-filter-error" className="mt-1 font-mono text-[11px] text-del">
+          {selection.message}
+        </p>
+      )}
     </div>
   )
 }
@@ -240,6 +317,18 @@ export default function JsonTool() {
     return deferred.sortKeys ? withSortedKeys(value) : value
   }, [parsed, embeddedOptions, deferred])
 
+  // Narrowing runs last, on what the user sees: embedded payloads are already
+  // expanded, so a path can reach inside one.
+  const selection = useMemo<Selection | undefined>(
+    () => (shown === undefined ? undefined : selectPath(shown, deferred.filter)),
+    [shown, deferred.filter],
+  )
+  const focused = selection?.ok === true ? selection : undefined
+
+  function setFilter(filter: string) {
+    setState((p) => ({ ...p, filter }))
+  }
+
   const isFieldActive = (pointer: string) =>
     state.expandEmbedded || state.expandPointers.includes(pointer)
   const anyFieldActive = fields.some((f) => isFieldActive(f.pointer))
@@ -267,12 +356,12 @@ export default function JsonTool() {
       const r = unescapeJsonString(text)
       return r.ok ? r.value : ''
     }
-    if (shown === undefined) return ''
+    if (focused === undefined) return ''
 
     return mode === 'minify'
-      ? minifyValue(shown, { sortKeys: false })
-      : formatValue(shown, { indent, sortKeys: false })
-  }, [shown, deferred])
+      ? minifyValue(focused.value, { sortKeys: false })
+      : formatValue(focused.value, { indent, sortKeys: false })
+  }, [focused, deferred])
 
   const unescapeError =
     deferred.mode === 'unescape' && deferred.text !== ''
@@ -284,7 +373,7 @@ export default function JsonTool() {
 
   const isTextMode = state.mode === 'escape' || state.mode === 'unescape'
   const valid = analysis.flavor === 'json' || analysis.flavor === 'jsonc'
-  const showTree = state.mode === 'format' && state.view === 'tree' && valid && shown !== undefined
+  const showTree = state.mode === 'format' && state.view === 'tree' && valid
 
   // Only worth running on a document that does not parse. Counts are exact:
   // each fix sees the previous one's output.
@@ -543,6 +632,10 @@ export default function JsonTool() {
               </div>
             )}
 
+            {!isTextMode && valid && selection !== undefined && (
+              <FilterBar value={state.filter} selection={selection} onChange={setFilter} />
+            )}
+
             {unescapeError !== null ? (
               <div className="flex-1 overflow-auto p-3 font-mono text-[13px] text-del scroll-thin">
                 {unescapeError}
@@ -553,10 +646,20 @@ export default function JsonTool() {
                   <IssueCard key={`${issue.offset}:${issue.length}:${issue.code}`} issue={issue} />
                 ))}
               </div>
-            ) : showTree ? (
-              <TreeView value={shown} />
+            ) : showTree && focused !== undefined ? (
+              <TreeView
+                // A new subtree opens with its own default expansion.
+                key={toJsonPointer(focused.path)}
+                value={focused.value}
+                basePath={focused.path}
+                onFilter={(path: PathSegment[]) => setFilter(toJqPath(path))}
+              />
             ) : (
-              <CodeArea value={output} readOnly placeholder="Output appears here" />
+              <CodeArea
+                value={output}
+                readOnly
+                placeholder={selection?.ok === false ? 'Nothing at this path' : 'Output appears here'}
+              />
             )}
           </div>
         }

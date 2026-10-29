@@ -12,6 +12,7 @@ Nothing yet.
 
 ### Added
 - Pin your favourite tools to the top. Use the pin next to any tool's name, or Pin in the ⌘K palette, and the tool appears in a Pinned section at the top of the sidebar and the home page, in order, with its ⌘1–⌘9 shortcut shown beside it. Up to nine tools can be pinned.
+- JSON Formatter: narrow the output to one part of the document. Select a node in Tree view and press Filter, or type a path into the new Filter field as `.items[0].id`, `items[0].id`, `$.items[0].id` or `/items/0/id`. Both the text output and the tree show just that node, and Copy copies just that node. Copied paths still point into the whole document. A path that doesn't match says where it stopped (`.items has 3 items; there is no [5]`), and the ↑ button moves up one level.
 
 ### Fixed
 - On phones, the GitHub and Settings icons at the top right no longer have a wide empty gap between them.
