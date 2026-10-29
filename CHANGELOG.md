@@ -6,7 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- Timestamp Converter: paste a Unix timestamp in seconds, milliseconds, microseconds or nanoseconds (the unit is detected for you), or an ISO 8601 date, and see it as ISO 8601 in UTC and in any time zone with its real offset, as an HTTP date, a readable local date, a relative time like "3 hours ago", the weekday and the ISO week, each with its own Copy button.
+- JWT Decoder: paste a JSON Web Token, with or without `Bearer`, to see its header and payload, its `exp`, `iat` and `nbf` as real dates in your time zone and UTC, and whether it has expired, with warnings for `alg: none`, missing expiry and malformed segments. Encrypted tokens show their header. Nothing you paste is ever saved.
+- URL Encode / Decode: percent-encode or decode text as a URL component, a whole URL, or form data (`+` for spaces). A malformed escape like `%E2%82` is pointed out by position instead of failing silently, you're warned when something looks double-encoded (`%2520`), and pasting a URL or query string shows its parts and a table of parameters, duplicates and value-less flags included, each one copyable.
+- Hash Text: see the SHA-1, SHA-256, SHA-384 and SHA-512 of any text at once, in hex, uppercase hex or base64. Paste an expected hash to see which one matches. You're warned when your text ends with a newline or has Windows line endings, the usual reasons a hash "doesn't match", and can ignore one trailing newline with a tick.
+- HMAC Signature: compute and check webhook signatures for GitHub, Stripe and Slack, or plain HMAC-SHA-1/256/384/512. Paste the signature header you received to see whether it matches, or whether its timestamp is too old; you see the exact string that was signed and the header as the provider sends it. Your secret key is never saved.
+- Slug Generator: turn titles into URL slugs (accents folded, ß/æ/ø/ł spelled out, camelCase split, optional Unicode for CJK, word-safe length limit) or into filenames that are safe on Windows, macOS and Linux at once, with reserved names, trailing dots and the 255-byte limit handled and a note of what changed.
+- Text to Binary / Hex: turn text into its UTF-8 bytes as binary, hex, decimal or octal, and back. Pasted bytes are read in almost any layout (`0x` and `\x` prefixes, commas, no spaces), a bad token is pointed out exactly, the format is guessed and you're told when the guess is ambiguous, and bytes that aren't valid UTF-8 are located.
+- Number Converter: convert integers of any size between bases 2–36 (with two's complement for negatives), turn byte sizes like 1.5 GB or 512 KiB into exact bytes in both SI and IEC units, and translate Unix permissions between 755, rwxr-xr-x and chmod commands with a checkbox grid.
+- Unicode Inspector: paste text to see every code point with its line and column, UTF-8 bytes and category, and find the zero-width spaces, bidi controls (Trojan Source), odd spaces and lone surrogates that break parsers. Flagged only shows just the problem characters, and Clean strips them while keeping emoji intact.
+- ID Generator: make UUID v4, UUID v7 and ULID ids, with or without a prefix like `user_`. UUID v7 and ULID sort in creation order, even within a batch made in the same millisecond. Paste any UUID or ULID into "Inspect an ID" to see its version and when it was created.
 
 ## [0.7.0] — 2026-10-29
 

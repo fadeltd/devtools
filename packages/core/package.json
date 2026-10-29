@@ -1,7 +1,7 @@
 {
   "name": "@fadeltd/devtools-core",
   "version": "0.1.0",
-  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, diff, base64, IDs, text statistics and HTML to text. Pure functions, no DOM, no network.",
+  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, diff, base64, IDs and UUIDs, timestamps, JWT decoding, URL encoding, hashes and HMAC, slugs, text bytes, number bases and Unicode inspection. Pure functions, no DOM, no network.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -13,6 +13,10 @@
     "./diff": {
       "types": "./dist/diff/index.d.ts",
       "default": "./dist/diff/index.js"
+    },
+    "./hash": {
+      "types": "./dist/hash/index.d.ts",
+      "default": "./dist/hash/index.js"
     },
     "./html-text": {
       "types": "./dist/html-text/index.d.ts",
@@ -26,21 +30,49 @@
       "types": "./dist/json/index.d.ts",
       "default": "./dist/json/index.js"
     },
+    "./jwt": {
+      "types": "./dist/jwt/index.d.ts",
+      "default": "./dist/jwt/index.js"
+    },
     "./list": {
       "types": "./dist/list/index.d.ts",
       "default": "./dist/list/index.js"
+    },
+    "./number": {
+      "types": "./dist/number/index.d.ts",
+      "default": "./dist/number/index.js"
     },
     "./random": {
       "types": "./dist/random/index.d.ts",
       "default": "./dist/random/index.js"
     },
+    "./slug": {
+      "types": "./dist/slug/index.d.ts",
+      "default": "./dist/slug/index.js"
+    },
     "./text": {
       "types": "./dist/text/index.d.ts",
       "default": "./dist/text/index.js"
     },
+    "./text-bytes": {
+      "types": "./dist/text-bytes/index.d.ts",
+      "default": "./dist/text-bytes/index.js"
+    },
     "./text-stats": {
       "types": "./dist/text-stats/index.d.ts",
       "default": "./dist/text-stats/index.js"
+    },
+    "./timestamp": {
+      "types": "./dist/timestamp/index.d.ts",
+      "default": "./dist/timestamp/index.js"
+    },
+    "./unicode": {
+      "types": "./dist/unicode/index.d.ts",
+      "default": "./dist/unicode/index.js"
+    },
+    "./url": {
+      "types": "./dist/url/index.d.ts",
+      "default": "./dist/url/index.js"
     },
     "./package.json": "./package.json"
   },
@@ -88,7 +120,16 @@
     "list",
     "text statistics",
     "html to text",
-    "id generator"
+    "id generator",
+    "uuid",
+    "ulid",
+    "timestamp",
+    "jwt",
+    "url encode",
+    "sha256",
+    "hmac",
+    "slugify",
+    "unicode"
   ],
   "publishConfig": {
     "access": "public"
