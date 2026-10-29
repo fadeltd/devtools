@@ -39,3 +39,21 @@ export function svgDimensions(text: string): Dimensions | null {
   if (height !== undefined) return { width: (height * vbW) / vbH, height }
   return { width: vbW, height: vbH }
 }
+
+/** The root element's sizing attributes, verbatim, for showing what the file declares. */
+export interface SvgRoot {
+  width: string | null
+  height: string | null
+  viewBox: string | null
+}
+
+/** Raw width, height and viewBox of the root `<svg>`, or null when there is no root element. */
+export function svgRoot(text: string): SvgRoot | null {
+  const tag = /<svg\b[^>]*>/i.exec(text)?.[0]
+  if (tag === undefined) return null
+  return {
+    width: attr(tag, 'width')?.trim() ?? null,
+    height: attr(tag, 'height')?.trim() ?? null,
+    viewBox: attr(tag, 'viewBox')?.trim() ?? null,
+  }
+}

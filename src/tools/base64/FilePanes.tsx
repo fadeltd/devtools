@@ -1,6 +1,6 @@
 import type { Remote } from 'comlink'
 import { Download, X } from 'lucide-react'
-import { useEffect, useMemo, useRef, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { TwoPane } from '@/components/layout/TwoPane'
 import { Badge } from '@/components/ui/Badge'
 import { Button, Segmented } from '@/components/ui/Button'
@@ -11,6 +11,7 @@ import { downloadBlob } from '@/lib/util/download'
 import { useWorkerJob } from '@/lib/worker/useWorkerJob'
 import {
   base64Length,
+  decodeBytesAs,
   type Alphabet,
   type EncodeOptions,
   formatOutput,
@@ -20,6 +21,9 @@ import {
   headOf,
 } from '@fadeltd/devtools-core/base64'
 import type { FileApi, Inspected } from './file.worker'
+import { HexView } from './HexView'
+import { SvgInspect } from './SvgInspect'
+import { useAsyncValue } from './useAsyncValue'
 
 export interface StoredFile {
   /** Fresh per pick, so a new file remounts its panes instead of showing the old one's output. */
@@ -73,6 +77,25 @@ const FORMS: { value: OutputForm; label: string; title: string }[] = [
   { value: 'base64', label: 'Base64', title: 'Just the encoded bytes' },
 ]
 
+type FileView = 'encoded' | 'hex'
+
+const VIEWS: { value: FileView; label: string; title: string }[] = [
+  { value: 'encoded', label: 'Encoded', title: 'The file as base64' },
+  { value: 'hex', label: 'Hex', title: 'The raw bytes as a hex dump, with their SHA-256' },
+]
+
+async function readBytes(blob: Blob): Promise<Uint8Array> {
+  return new Uint8Array(await blob.arrayBuffer())
+}
+
+/** The file's own bytes, read once the Hex view is opened. */
+function FileHex({ blob, mime, name }: { blob: Blob; mime: string; name: string }) {
+  const bytes = useAsyncValue(blob, readBytes)
+  if (bytes.status === 'pending') return <p className="p-3 font-mono text-[12px] text-faint">Reading…</p>
+  if (bytes.status === 'error') return <p className="p-3 font-mono text-[12px] text-del">{bytes.error}</p>
+  return <HexView bytes={bytes.value} type={mime} name={name} />
+}
+
 /** Preview plus what the bytes actually are. Pasted SVG only ever renders through <img>, which runs no script. */
 function FileCard({
   blob,
@@ -92,6 +115,7 @@ function FileCard({
 }) {
   const url = useObjectUrl(blob)
   const isImage = mime.startsWith('image/')
+  const isSvg = mime === 'image/svg+xml'
 
   return (
     <div className="flex min-h-0 w-full flex-col">
@@ -113,7 +137,9 @@ function FileCard({
             {size === undefined
               ? 'measuring…'
               : size === null
-                ? 'size unavailable in this browser'
+                ? isSvg
+                  ? 'no intrinsic size'
+                  : 'size unavailable in this browser'
                 : `${Math.round(size.width)} × ${Math.round(size.height)} px`}
           </span>
         )}
@@ -121,6 +147,7 @@ function FileCard({
         <span className="flex-1" />
         {children}
       </div>
+      {isSvg && <SvgInspect blob={blob} name={baseName(name)} />}
     </div>
   )
 }
@@ -157,6 +184,7 @@ export function FileEncoder({
   )
   const job = useWorkerJob(spawnFileWorker, inspectInWorker, input)
   const base64 = job.result?.base64 ?? null
+  const [view, setView] = useState<FileView>('encoded')
 
   const output = useMemo(
     () => (base64 === null ? '' : formatOutput(form, file.mime, base64, { alt: baseName(file.name), size: job.result?.size ?? null })),
@@ -194,39 +222,46 @@ export function FileEncoder({
       right={
         <div className="flex min-h-0 w-full flex-col border-t border-border md:border-t-0 md:border-l">
           <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border px-3 py-1.5">
-            <Segmented value={form} options={FORMS} onChange={onForm} />
-            {standardOnly && (
+            <Segmented value={view} options={VIEWS} onChange={setView} />
+            {view === 'encoded' && <Segmented value={form} options={FORMS} onChange={onForm} />}
+            {view === 'encoded' && standardOnly && (
               <Badge title="data: URIs, <img> and CSS need standard, padded, unwrapped base64">
                 standard alphabet
               </Badge>
             )}
           </div>
-          <CodeArea value={shown} readOnly placeholder={job.status === 'running' ? 'Encoding…' : ''} />
-          <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
-            <span>
-              {formatBytes(file.blob.size)} → {formatBytes(encodedBytes)}
-            </span>
-            {large && <Badge title="The full text is not shown, to keep the page responsive">showing the first 2 KB</Badge>}
-            {job.status === 'slow' && (
-              <>
-                <Badge tone="warn">Still encoding after 2s</Badge>
-                <Button variant="danger" onClick={job.cancel}>
-                  Cancel
+          {view === 'hex' ? (
+            <FileHex blob={file.blob} mime={file.mime} name={baseName(file.name)} />
+          ) : (
+            <>
+              <CodeArea value={shown} readOnly placeholder={job.status === 'running' ? 'Encoding…' : ''} />
+              <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
+                <span>
+                  {formatBytes(file.blob.size)} → {formatBytes(encodedBytes)}
+                </span>
+                {large && <Badge title="The full text is not shown, to keep the page responsive">showing the first 2 KB</Badge>}
+                {job.status === 'slow' && (
+                  <>
+                    <Badge tone="warn">Still encoding after 2s</Badge>
+                    <Button variant="danger" onClick={job.cancel}>
+                      Cancel
+                    </Button>
+                  </>
+                )}
+                {job.status === 'cancelled' && <Badge tone="del">Cancelled</Badge>}
+                {job.status === 'error' && <Badge tone="del">{job.error}</Badge>}
+                <span className="flex-1" />
+                <CopyButton value={output} />
+                <Button
+                  disabled={output === ''}
+                  onClick={() => downloadBlob(new Blob([output], { type: 'text/plain' }), `${baseName(file.name)}.${form}.txt`)}
+                >
+                  <Download size={14} aria-hidden />
+                  Download
                 </Button>
-              </>
-            )}
-            {job.status === 'cancelled' && <Badge tone="del">Cancelled</Badge>}
-            {job.status === 'error' && <Badge tone="del">{job.error}</Badge>}
-            <span className="flex-1" />
-            <CopyButton value={output} />
-            <Button
-              disabled={output === ''}
-              onClick={() => downloadBlob(new Blob([output], { type: 'text/plain' }), `${baseName(file.name)}.${form}.txt`)}
-            >
-              <Download size={14} aria-hidden />
-              Download
-            </Button>
-          </div>
+              </div>
+            </>
+          )}
         </div>
       }
     />
@@ -247,5 +282,80 @@ export function DecodedImage({ bytes, mime, ext }: { bytes: Uint8Array; mime: st
         Download
       </Button>
     </FileCard>
+  )
+}
+
+/**
+ * Decode mode, when the text is an SVG: the text stays the output, with the
+ * picture and the strip report above it. Valid UTF-8 never reaches the image
+ * path, so without this a decoded SVG would only ever show as markup.
+ */
+export function DecodedSvg({ bytes, text }: { bytes: Uint8Array; text: string }) {
+  return (
+    <div className="flex min-h-0 w-full flex-1 flex-col">
+      <div className="flex h-1/2 min-h-0 shrink-0 border-b border-border">
+        <DecodedImage bytes={bytes} mime="image/svg+xml" ext="svg" />
+      </div>
+      <CodeArea value={text} readOnly className="min-h-0 flex-1" />
+    </div>
+  )
+}
+
+type BinaryView = 'hex' | 'text'
+
+/** Decode mode, when the bytes are neither UTF-8 nor an image: a hex view, with a legacy-encoding reading beside it. */
+export function DecodedBinary({
+  bytes,
+  mime,
+  ext,
+  known,
+  fallbackEncoding,
+}: {
+  bytes: Uint8Array
+  mime: string
+  ext: string
+  /** False when the bytes matched no signature. */
+  known: boolean
+  fallbackEncoding: string
+}) {
+  const [view, setView] = useState<BinaryView>('hex')
+  // Only decoded when asked for: a 10 MB paste should not build a 10 MB string nobody looks at.
+  const asText = useMemo(
+    () => (view === 'text' ? decodeBytesAs(bytes, fallbackEncoding) : ''),
+    [view, bytes, fallbackEncoding],
+  )
+  const options = useMemo<{ value: BinaryView; label: string; title?: string }[]>(
+    () => [
+      { value: 'hex', label: 'Hex' },
+      { value: 'text', label: `Text (${fallbackEncoding})`, title: `The bytes read as ${fallbackEncoding}` },
+    ],
+    [fallbackEncoding],
+  )
+  const name = `decoded.${ext}`
+  const download = (
+    <Button onClick={() => downloadBlob(new Blob([bytes.slice()], { type: mime }), name)} title="Download the decoded bytes">
+      <Download size={14} aria-hidden />
+      Bytes
+    </Button>
+  )
+
+  return (
+    <div className="flex min-h-0 w-full flex-1 flex-col">
+      <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-border px-3 py-1.5">
+        <Segmented value={view} options={options} onChange={setView} />
+        {view === 'text' && (
+          <>
+            <span className="flex-1" />
+            <CopyButton value={asText} />
+            {download}
+          </>
+        )}
+      </div>
+      {view === 'hex' ? (
+        <HexView bytes={bytes} type={known ? mime : null} name="decoded" actions={download} />
+      ) : (
+        <CodeArea value={asText} readOnly />
+      )}
+    </div>
   )
 }
