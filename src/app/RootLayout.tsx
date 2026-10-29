@@ -15,6 +15,7 @@ import { Kbd } from '@/components/ui/Kbd'
 import { useShortcuts } from '@/lib/keys/useShortcuts'
 import type { Shortcut } from '@/lib/keys/types'
 import { usePrefs } from '@/lib/prefs'
+import { TOOLS_BY_SLUG } from '@/lib/registry'
 
 export default function RootLayout() {
   const navigate = useNavigate()
@@ -60,7 +61,7 @@ export default function RootLayout() {
     prefs.pins.forEach((slug, i) => {
       list.push({
         combo: `mod+${i + 1}`,
-        label: `Go to ${slug}`,
+        label: `Go to ${TOOLS_BY_SLUG[slug].title}`,
         group: 'Pinned tools',
         scope: 'global',
         whileTyping: true,
@@ -118,25 +119,30 @@ export default function RootLayout() {
           <Kbd>⌘K</Kbd>
         </button>
 
-        <a
-          href="https://github.com/fadeltd/devtools"
-          target="_blank"
-          rel="noreferrer noopener"
-          aria-label="Source on GitHub"
-          title="Source on GitHub"
-          className="flex size-11 items-center justify-center rounded-[4px] border border-transparent text-muted hover:border-border hover:bg-surface hover:text-fg md:size-7"
-        >
-          <GithubIcon size={15} />
-        </a>
+        {/* No gap inside this group: each icon already sits in a 44px touch
+            target, and the header's gap on top of that padding left a visible
+            hole between two borderless icons. */}
+        <div className="flex items-center">
+          <a
+            href="https://github.com/fadeltd/devtools"
+            target="_blank"
+            rel="noreferrer noopener"
+            aria-label="Source on GitHub"
+            title="Source on GitHub"
+            className="flex size-11 items-center justify-center rounded-[4px] border border-transparent text-muted hover:border-border hover:bg-surface hover:text-fg md:size-7"
+          >
+            <GithubIcon size={15} />
+          </a>
 
-        <Link
-          to="/settings"
-          aria-label="Settings"
-          title="Settings"
-          className="flex size-11 items-center justify-center rounded-[4px] border border-transparent text-muted hover:border-border hover:bg-surface hover:text-fg md:size-7"
-        >
-          <Settings size={15} />
-        </Link>
+          <Link
+            to="/settings"
+            aria-label="Settings"
+            title="Settings"
+            className="flex size-11 items-center justify-center rounded-[4px] border border-transparent text-muted hover:border-border hover:bg-surface hover:text-fg md:size-7"
+          >
+            <Settings size={15} />
+          </Link>
+        </div>
       </header>
 
       <div className="flex min-h-0 flex-1">
