@@ -7,7 +7,25 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- List Tools: chain operations. Build steps like "remove duplicates → natural
+  sort → add prefix `sk_live_`" on one screen; each step shows how many lines
+  went in and came out, so you can see which one ate your data. Reorder steps
+  with the arrows or by dragging, and switch one off without deleting it.
+- List Tools: eleven more operations: change case, prefix/suffix, filter (by
+  text, regex, blank, line number or repeats), number lines, wrap, join,
+  split, trim, Unicode normalize, keep a range, and compare with a second
+  list (union, intersection, difference).
+- List Tools: the warning about lines that look identical but are encoded
+  differently now appears after any step that compares lines, not only after
+  removing duplicates.
+
+### Changed
+- List Tools: the operations now run in the background. A regex that would
+  freeze the page, such as `(a+)+$`, leaves it responsive; after 2 seconds
+  you get a Cancel button. Your saved list settings reset once with this
+  update.
+- List Tools: Clear now empties only the input, and keeps your steps.
 
 ## [0.5.0] — 2026-10-26
 

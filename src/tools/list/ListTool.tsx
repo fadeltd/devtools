@@ -1,3 +1,4 @@
+import type { Remote } from 'comlink'
 import { useDeferredValue, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { ToolFrame } from '@/components/layout/ToolFrame'
@@ -6,79 +7,45 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { CodeArea } from '@/components/ui/CodeArea'
 import { CopyButton } from '@/components/ui/CopyButton'
-import { Select, Toggle } from '@/components/ui/Select'
 import { useToolState } from '@/lib/persist/useToolState'
 import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatCount } from '@/lib/util/bytes'
 import { countStats } from '@/lib/text/counts'
-import { parseLines, serializeLines } from './core/lines'
-import { findNormalizationCollisions, runPipeline } from './core/pipeline'
-import type { BlankPolicy, Op, SortMode } from './core/types'
-
-/** The operations that have UI today. The Op union covers far more. */
-const OPS = ['sort', 'dedupe', 'shuffle', 'reverse'] as const
-type OpName = (typeof OPS)[number]
-
-const OP_LABELS: Record<OpName, string> = {
-  sort: 'Sort',
-  dedupe: 'Remove duplicates',
-  shuffle: 'Randomize',
-  reverse: 'Reverse',
-}
+import { useWorkerJob } from '@/lib/worker/useWorkerJob'
+import { parseLines } from './core/lines'
+import { defaultOp, isOpKind, withRouteKind, type Step } from './core/ops'
+import type { Op, StepStat } from './core/types'
+import { Pipeline } from './Pipeline'
+import type { PipelineApi, PipelineOutput } from './pipeline.worker'
 
 interface State {
   text: string
-  op: OpName
-  sortMode: SortMode
-  sortDesc: boolean
-  caseSensitive: boolean
-  blanks: BlankPolicy
-  dedupeKeep: 'first' | 'last'
-  dedupeOutput: 'unique' | 'duplicates-only' | 'unique-only' | 'with-counts'
+  steps: Step[]
   shuffleNonce: number
 }
 
 const INITIAL: State = {
   text: '',
-  op: 'sort',
-  sortMode: 'natural',
-  sortDesc: false,
-  caseSensitive: false,
-  blanks: 'keep',
-  dedupeKeep: 'first',
-  dedupeOutput: 'unique',
+  steps: [{ id: 'initial', op: defaultOp('sort'), enabled: true }],
   shuffleNonce: 0,
 }
 
-function isOpName(v: string): v is OpName {
-  return (OPS as readonly string[]).includes(v)
+interface Input {
+  text: string
+  ops: Op[]
+  /** Only here to change the input's identity, so "Shuffle again" re-runs. */
+  nonce: number
 }
 
-function buildOp(s: State): Op {
-  switch (s.op) {
-    case 'sort':
-      return {
-        kind: 'sort',
-        order: s.sortDesc ? 'desc' : 'asc',
-        mode: s.sortMode,
-        caseSensitive: s.caseSensitive,
-        blanks: s.blanks,
-      }
-    case 'dedupe':
-      return {
-        kind: 'dedupe',
-        caseSensitive: s.caseSensitive,
-        trimKey: false,
-        keep: s.dedupeKeep,
-        output: s.dedupeOutput,
-      }
-    case 'shuffle':
-      return { kind: 'shuffle', source: 'crypto' }
-    case 'reverse':
-      return { kind: 'reverse' }
-  }
+// Module-level so useWorkerJob sees stable references.
+function spawnPipeline() {
+  return new Worker(new URL('./pipeline.worker.ts', import.meta.url), { type: 'module' })
+}
+
+function runInWorker(api: Remote<PipelineApi>, input: Input): Promise<PipelineOutput> {
+  return api.run(input.text, input.ops)
 }
 
 export default function ListTool() {
@@ -86,40 +53,45 @@ export default function ListTool() {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const { state, setState, reset } = useToolState<State>('list', INITIAL)
+  const { state, setState } = useToolState<State>('list', INITIAL)
 
-  // /list/sort, /list/dedupe, ... deep-link straight to an operation, so
-  // muscle memory and bookmarks work as if these were separate pages.
-  const routeOp = location.pathname.split('/')[2] ?? ''
-  const op: OpName = isOpName(routeOp) ? routeOp : state.op
+  const routeSegment = location.pathname.split('/')[2] ?? ''
+  const routeKind = isOpKind(routeSegment) ? routeSegment : undefined
+  // Memoised: a fresh array here would re-key the worker input on every render,
+  // and every result would then trigger another run.
+  const steps = useMemo(() => withRouteKind(state.steps, routeKind), [state.steps, routeKind])
 
-  function setOp(next: OpName) {
-    setState((p) => ({ ...p, op: next }))
-    void navigate(`/list/${next}`, { replace: true })
+  function setSteps(next: Step[]) {
+    setState((p) => ({ ...p, steps: next }))
+    // Editing makes the pipeline yours; the deep link has done its job.
+    if (routeKind !== undefined) void navigate('/list', { replace: true })
   }
 
-  // Keeps typing responsive: the transform runs against a deferred snapshot.
+  const ops = useMemo(() => steps.filter((s) => s.enabled).map((s) => s.op), [steps])
+  // Keeps typing responsive: the worker runs against a deferred snapshot.
   const deferredText = useDeferredValue(state.text)
-  const effective = useMemo(() => ({ ...state, op, text: deferredText }), [state, op, deferredText])
-
-  const result = useMemo(() => {
-    const doc = parseLines(effective.text)
-    // shuffleNonce is read here so that "Shuffle again" re-runs the pipeline.
-    void effective.shuffleNonce
-    return runPipeline(doc, [buildOp(effective)])
-  }, [effective])
-
-  const output = useMemo(() => serializeLines(result.doc), [result.doc])
-  const counts = useMemo(() => countStats(output), [output])
-  const inputLines = result.steps[0]?.inLines ?? 0
-  const outputLines = result.steps[0]?.outLines ?? 0
-
-  const collisions = useMemo(
-    () => (op === 'dedupe' ? findNormalizationCollisions(result.doc.lines) : 0),
-    [op, result.doc.lines],
+  const input = useMemo<Input>(
+    () => ({ text: deferredText, ops, nonce: state.shuffleNonce }),
+    [deferredText, ops, state.shuffleNonce],
   )
 
+  const job = useWorkerJob(spawnPipeline, runInWorker, input)
+  const result = job.result
+  const output = result?.output ?? ''
+
+  // Map the enabled-only stats back onto every step. Counts from a run with a
+  // different shape would point at the wrong cards, so drop them.
+  const stats = useMemo(() => {
+    const ran = result?.steps
+    if (ran?.length !== ops.length) return steps.map(() => undefined)
+    let k = 0
+    return steps.map((s): StepStat | undefined => (s.enabled ? ran[k++] : undefined))
+  }, [result, ops.length, steps])
+
+  const counts = useMemo(() => countStats(output), [output])
   const inputDoc = useMemo(() => parseLines(state.text), [state.text])
+  const inputLines = inputDoc.lines.length
+  const outputLines = result?.steps.at(-1)?.outLines ?? inputLines
 
   useShortcuts([
     {
@@ -136,7 +108,7 @@ export default function ListTool() {
       group: 'List tools',
       scope: 'tool',
       whileTyping: true,
-      run: () => reset(),
+      run: () => setState((p) => ({ ...p, text: '' })),
     },
   ])
 
@@ -145,100 +117,19 @@ export default function ListTool() {
       slug="list"
       actions={
         <>
-          <Select value={op} onChange={(e) => setOp(e.target.value as OpName)}>
-            {OPS.map((o) => (
-              <option key={o} value={o}>
-                {OP_LABELS[o]}
-              </option>
-            ))}
-          </Select>
-
-          {op === 'sort' && (
-            <>
-              <Select
-                value={state.sortMode}
-                onChange={(e) => setState((p) => ({ ...p, sortMode: e.target.value as SortMode }))}
-                title="Sort mode"
-              >
-                <option value="natural">Natural (numbers in order)</option>
-                <option value="locale">Alphabetical</option>
-                <option value="codepoint">Codepoint (byte order)</option>
-                <option value="length">Line length</option>
-              </Select>
-              <Toggle
-                checked={state.sortDesc}
-                onChange={(v) => setState((p) => ({ ...p, sortDesc: v }))}
-              >
-                Descending
-              </Toggle>
-              <Select
-                value={state.blanks}
-                onChange={(e) =>
-                  setState((p) => ({ ...p, blanks: e.target.value as BlankPolicy }))
-                }
-                title="Blank lines"
-              >
-                <option value="keep">Blanks: in order</option>
-                <option value="first">Blanks: first</option>
-                <option value="last">Blanks: last</option>
-                <option value="drop">Blanks: remove</option>
-              </Select>
-            </>
-          )}
-
-          {op === 'dedupe' && (
-            <>
-              <Select
-                value={state.dedupeOutput}
-                onChange={(e) =>
-                  setState((p) => ({
-                    ...p,
-                    dedupeOutput: e.target.value as State['dedupeOutput'],
-                  }))
-                }
-              >
-                <option value="unique">Keep unique lines</option>
-                <option value="duplicates-only">Show only duplicates</option>
-                <option value="unique-only">Show only non-repeated</option>
-                <option value="with-counts">Prefix with counts</option>
-              </Select>
-              {state.dedupeOutput === 'unique' && (
-                <Select
-                  value={state.dedupeKeep}
-                  onChange={(e) =>
-                    setState((p) => ({ ...p, dedupeKeep: e.target.value as 'first' | 'last' }))
-                  }
-                >
-                  <option value="first">Keep first</option>
-                  <option value="last">Keep last</option>
-                </Select>
-              )}
-            </>
-          )}
-
-          {(op === 'sort' || op === 'dedupe') && (
-            <Toggle
-              checked={state.caseSensitive}
-              onChange={(v) => setState((p) => ({ ...p, caseSensitive: v }))}
-            >
-              Case sensitive
-            </Toggle>
-          )}
-
-          {op === 'shuffle' && (
-            <Button onClick={() => setState((p) => ({ ...p, shuffleNonce: p.shuffleNonce + 1 }))}>
-              Shuffle again
-            </Button>
-          )}
-
           <CopyButton value={output} />
-          <Button variant="ghost" onClick={reset} title="Clear input">
+          <Button
+            variant="ghost"
+            onClick={() => setState((p) => ({ ...p, text: '' }))}
+            title="Clear input (keeps your steps)"
+          >
             Clear
           </Button>
         </>
       }
     >
       <TwoPane
+        rightLabel="Steps & output"
         left={
           <div className="flex min-h-0 w-full flex-col">
             <CodeArea
@@ -247,7 +138,7 @@ export default function ListTool() {
               placeholder={'Paste your list here, one item per line…'}
             />
             <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
-              <span>{formatCount(inputDoc.lines.length)} lines in</span>
+              <span>{formatCount(inputLines)} lines in</span>
               {inputDoc.eol === 'mixed' && (
                 <Badge tone="warn" title="Output will use LF">
                   mixed line endings
@@ -258,26 +149,48 @@ export default function ListTool() {
           </div>
         }
         right={
-          <div className="flex min-h-0 w-full flex-col border-t border-border md:border-t-0 md:border-l">
-            <CodeArea value={output} readOnly placeholder="Output appears here" />
-            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
-              <span>
-                {formatCount(inputLines)} → {formatCount(outputLines)} lines
-              </span>
-              {inputLines > outputLines && (
-                <Badge tone="add">−{formatCount(inputLines - outputLines)}</Badge>
-              )}
-              <span>{formatCount(counts.words)} words</span>
-              <span>{formatCount(counts.graphemes)} chars</span>
-              <span>{formatCount(counts.bytes)} bytes</span>
-              {collisions > 0 && (
-                <Badge tone="warn" title="These look identical but are encoded differently">
-                  {collisions} differ only by Unicode form
-                </Badge>
-              )}
-              {result.steps[0]?.error !== undefined && (
-                <Badge tone="del">{result.steps[0].error}</Badge>
-              )}
+          <div className="flex min-h-0 w-full flex-col border-t border-border md:flex-row md:border-t-0 md:border-l">
+            <div className="max-h-[45dvh] shrink-0 overflow-y-auto border-b border-border bg-surface scroll-thin md:max-h-none md:w-[300px] md:border-b-0 md:border-r">
+              <Pipeline
+                steps={steps}
+                stats={stats}
+                stale={job.status !== 'done'}
+                onChange={setSteps}
+                onReshuffle={() => setState((p) => ({ ...p, shuffleNonce: p.shuffleNonce + 1 }))}
+              />
+            </div>
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+              <CodeArea value={output} readOnly placeholder="Output appears here" />
+              <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
+                <span>
+                  {formatCount(inputLines)} → {formatCount(outputLines)} lines
+                </span>
+                <span>{formatCount(counts.words)} words</span>
+                <span>{formatCount(counts.graphemes)} chars</span>
+                <span>{formatCount(counts.bytes)} bytes</span>
+                {result !== undefined && result.collisions > 0 && (
+                  <Badge tone="warn" title="These look identical but are encoded differently">
+                    {result.collisions} differ only by Unicode form
+                  </Badge>
+                )}
+                {job.status === 'slow' && (
+                  <>
+                    <Badge tone="warn" title="Probably a regex that backtracks badly">
+                      Still running after 2s
+                    </Badge>
+                    <Button variant="danger" onClick={job.cancel}>
+                      Cancel
+                    </Button>
+                  </>
+                )}
+                {job.status === 'cancelled' && (
+                  <Badge tone="del" title="Edit a step or the input to run again">
+                    Cancelled — output is from the last finished run
+                  </Badge>
+                )}
+                {job.status === 'error' && <Badge tone="del">{job.error}</Badge>}
+              </div>
             </div>
           </div>
         }
