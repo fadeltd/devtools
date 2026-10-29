@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.7.0] — 2026-10-29
+
 ### Added
 - Base64: encode images and other files. Drop a file on the page, paste a screenshot, or use Choose file. You get a preview with the real type and pixel size, and a warning when the file's name doesn't match its contents (for example, a JPEG saved as `.png`).
 - Base64: copy a file as a `data:` URI, an `<img>` tag with its size and alt text, a CSS `url()`, or plain base64.
