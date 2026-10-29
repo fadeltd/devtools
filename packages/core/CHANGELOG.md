@@ -6,7 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- `/json-types`: `jsonTypes(text, { target, rootName, declaration, inferTypes, pointers })` generates TypeScript, Zod (syntax valid in v3 and v4) or Go from sample JSON, JSONC or NDJSON. Optional (missing) and nullable (`null`) fields are kept apart; integers and floats are told apart by literal via lossless parsing; integer width is tracked (`safe`, `int64`, `uint64`, beyond); identical structures share one named type; Go output uses golint initialisms and gofmt column alignment. Returns positioned parse errors and path-tagged notes for anything approximated; never throws. Also exports `inferShape`.
 
 ## [0.5.0] — 2026-10-29
 

@@ -6,7 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- JSON to Types: paste a JSON sample and get TypeScript interfaces (or `type` aliases), a Zod schema or Go structs. Every sample is merged into one type, so a key missing from some array elements comes out optional and a key that is present but `null` comes out nullable, and the two are never confused. `1.0` is read as a float and `1` as an integer; an id beyond 2^53 is flagged instead of typed as something that would round it or that Zod 4 would reject, and in Go it widens to `int64` then `uint64`. Objects with the same structure share one type, and clashing names get the parent’s name, then a number. Go fields follow golint initialisms (`UserID`, `APIKey`), use pointers and `omitempty` for optional fields (switchable), align the way gofmt does, and a key a struct tag can’t hold is reported rather than mis-tagged. NDJSON is read one record per line, comments and trailing commas are accepted, invalid JSON shows its line and a caret, and large pastes are processed off the main thread.
 
 ## [0.12.0] — 2026-10-29
 

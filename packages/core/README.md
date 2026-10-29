@@ -97,6 +97,14 @@ convert('{"a": null}', 'json', 'toml').errors[0] // { code: 'toml-null', path: '
 ```
 
 ```js
+import { jsonTypes } from '@fadeltd/devtools-core/json-types'
+
+jsonTypes('[{"id": 1, "note": null}, {"id": 2, "note": "x", "tag": "a"}]', { target: 'typescript', rootName: 'Row' }).output
+// export type RowList = Row[];
+// export interface Row { id: number; note: string | null; tag?: string; }  (one field per line)
+```
+
+```js
 import { describeCron, nextRuns, parseCron } from '@fadeltd/devtools-core/cron'
 
 const r = parseCron('30 2 * * *')
@@ -117,6 +125,7 @@ await formatSql('select a from t where b = 1', { dialect: 'postgresql', keywordC
 |---|---|
 | `/list` | Sort, natural sort, dedupe, shuffle, case, prefix/suffix, filter, number, wrap, join, split, trim, normalise, set operations, slice; chained with per-step line counts |
 | `/json` | Every error with line and column, auto-fixes for almost-JSON, embedded JSON-in-a-string expansion, lossless big numbers, tree flattening, path formats (pointer, dot, jq) |
+| `/json-types` | TypeScript, Zod or Go types inferred from sample JSON or NDJSON: optional vs nullable, shared and collision-safe type names, int vs float by literal, Go initialisms and gofmt alignment, notes for anything approximated |
 | `/diff` | Two-stage line → word diff, ignore whitespace/case/trim, exact stats, unified patch, share-link encoding |
 | `/base64` | UTF-8-correct encode and decode, base64url, input sanitising, magic-byte type sniffing, hex dump, `data:` URI / `<img>` / CSS output |
 | `/id-gen` | Prefixed IDs and passwords from `crypto.getRandomValues` with rejection sampling, UUID v4/v7 and ULID (monotonic), an ID inspector, plus entropy |

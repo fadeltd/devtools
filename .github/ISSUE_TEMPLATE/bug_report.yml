@@ -14,6 +14,7 @@ body:
       options:
         - Diff Checker
         - JSON Formatter
+        - JSON to Types
         - Base64
         - List Tools
         - ID Generator
