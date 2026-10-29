@@ -1,7 +1,7 @@
 {
   "name": "@fadeltd/devtools-core",
   "version": "0.3.0",
-  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, diff, base64, IDs and UUIDs, timestamps, JWT decoding, URL encoding, hashes and HMAC, slugs, text bytes, number bases and Unicode inspection. Pure functions, no DOM, no network.",
+  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, diff, base64, IDs and UUIDs, timestamps, JWT decoding, URL encoding, hashes and HMAC, slugs, text bytes, number bases, Unicode inspection, YAML/JSON/TOML, SQL and CSS formatting, CSV, .env, cron, string escaping, colors and contrast, QR codes and lorem ipsum. Pure functions, no DOM, no network.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -187,7 +187,20 @@
     "sha256",
     "hmac",
     "slugify",
-    "unicode"
+    "unicode",
+    "yaml",
+    "toml",
+    "sql formatter",
+    "css formatter",
+    "csv",
+    "dotenv",
+    "cron",
+    "escape",
+    "color",
+    "oklch",
+    "wcag contrast",
+    "qr code",
+    "lorem ipsum"
   ],
   "publishConfig": {
     "access": "public"

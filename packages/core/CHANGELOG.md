@@ -6,7 +6,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- `/yaml-toml`: `convert(input, from, to, options)` between JSON, YAML and TOML with `from: 'auto'`, returning errors, warnings and notes with line, column and a caret snippet; never throws. Also `guessFormat` and `stringifyJson` (JSON with exact bigint digits).
+- `/sql`: `formatSql` over twelve dialects via `sql-formatter`, with errors as line and column, and a dialect-aware `minifySql` that never touches strings, quoted identifiers or comments. `sql-formatter` is an optional peer dependency, loaded on first use.
+- `/css`: `formatCss` for CSS, SCSS and Less via Prettier standalone, with errors as line and column, and a hand-written plain-CSS `minifyCss`. `prettier` is an optional peer dependency, loaded on first use.
+- `/csv`: an RFC 4180 parser in linear time that never throws, with positioned issues (unclosed quotes, ragged rows, repeated headers), delimiter sniffing, column type hints, and JSON / Markdown / CSV / TSV writers.
+- `/env`: .env ↔ JSON ↔ shell export ↔ docker env-file conversion with dotenv-accurate parsing, per-value safe quoting, positioned issues and JSON flattening.
+- `/cron`: 5- and 6-field cron and `@` macros with field-and-position errors, Vixie day-of-month/day-of-week OR, `nextRuns` in any IANA zone with Vixie DST handling and never-fires detection, and `describeCron` (English, via `cronstrue`).
+- `/escape`: JSON, JavaScript, SQL (standard/MySQL), POSIX shell, regex and HTML-entity escaping and strict unescaping, with positioned errors.
+- `/color`: CSS color parsing (hex, rgb, hsl, oklch, named) with positioned errors; sRGB ↔ HSL ↔ OKLCH via OKLab; gamut detection and chroma clipping; WCAG contrast ratio, verdicts and the nearest passing foreground.
+- `/qr`: QR payload builders for text, URLs and Wi-Fi, encoding to a module matrix (via `uqr`), and a single-path SVG.
+- `/lorem`: lorem ipsum by exact word, sentence or paragraph count, as text, HTML or Markdown, seedable through any `RandomSource`.
 
 ## [0.3.0] — 2026-10-29
 

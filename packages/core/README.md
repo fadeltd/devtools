@@ -1,6 +1,6 @@
 # @fadeltd/devtools-core
 
-The engines behind [devtools.fadeltd.dev](https://devtools.fadeltd.dev): list pipelines, JSON errors and fixes, diff, base64, prefixed IDs and UUIDs, timestamps, JWT decoding, URL encoding, hashes and HMAC, slugs, text bytes, number bases, Unicode inspection, text statistics and HTML to text.
+The engines behind [devtools.fadeltd.dev](https://devtools.fadeltd.dev): list pipelines, JSON errors and fixes, diff, base64, prefixed IDs and UUIDs, timestamps, JWT decoding, URL encoding, hashes and HMAC, slugs, text bytes, number bases, Unicode inspection, YAML/JSON/TOML conversion, SQL and CSS formatting, CSV parsing, .env conversion, cron, string escaping, colors and contrast, QR codes, lorem ipsum, text statistics and HTML to text.
 
 Every export is a pure function: strings and bytes in, data out. No DOM, no network, no storage. It runs the same in Node, in a browser and in a worker, which is how the site itself uses it. Each tool also handles the edge cases that free online tools get wrong:
 
@@ -17,6 +17,8 @@ pnpm add @fadeltd/devtools-core
 ```
 
 ESM only. Requires Node 22.12+ or a current browser.
+
+`/sql` and `/css` use `sql-formatter` and `prettier`, which are optional peer dependencies so the other subpaths don't install them. Add the one you need: `pnpm add sql-formatter` or `pnpm add prettier`.
 
 ## Use
 
@@ -84,6 +86,30 @@ summary('{"key\u200b": 1}').positions[0] // { line: 1, column: 6, hex: 'U+200B',
 clean('a\u00a0b\u200bc').text // 'a bc'
 ```
 
+```js
+import { convert } from '@fadeltd/devtools-core/yaml-toml'
+
+convert('country: no\n', 'auto', 'json').notes[0] // { code: 'yaml11-bool', … } — "no" stays a string under YAML 1.2
+convert('{"a": null}', 'json', 'toml').errors[0] // { code: 'toml-null', path: '.a', line: 1, column: 2, … }
+```
+
+```js
+import { describeCron, nextRuns, parseCron } from '@fadeltd/devtools-core/cron'
+
+const r = parseCron('30 2 * * *')
+if (r.ok && r.value.kind === 'schedule') {
+  describeCron(r.value, { use24HourTimeFormat: true }) // { ok: true, text: 'At 02:30' }
+  nextRuns(r.value, { now: Date.now(), timeZone: 'America/New_York', count: 3 }).runs
+}
+```
+
+```js
+import { formatSql } from '@fadeltd/devtools-core/sql'
+
+await formatSql('select a from t where b = 1', { dialect: 'postgresql', keywordCase: 'upper' })
+// { ok: true, output: 'SELECT\n  a\nFROM\n  t\nWHERE\n  b = 1' }
+```
+
 | Subpath | What it does |
 |---|---|
 | `/list` | Sort, natural sort, dedupe, shuffle, case, prefix/suffix, filter, number, wrap, join, split, trim, normalise, set operations, slice; chained with per-step line counts |
@@ -101,6 +127,16 @@ clean('a\u00a0b\u200bc').text // 'a bc'
 | `/text-bytes` | UTF-8 text ↔ binary, hex, decimal or octal, with format auto-detection and invalid-UTF-8 offsets |
 | `/number` | BigInt base conversion 2–36 with two's complement, SI/IEC byte sizes, Unix permissions and chmod commands |
 | `/unicode` | Per-code-point inspection, invisible/bidi/tag/space flags with names, and an emoji-safe `clean()` |
+| `/yaml-toml` | JSON ↔ YAML ↔ TOML with auto-detection, positioned errors, YAML 1.2 with 1.1-gotcha notes, multi-document streams, exact big integers and TOML dates |
+| `/sql` | SQL formatting in twelve dialects via `sql-formatter` (optional peer, loaded on first use), errors with line and column, and a dialect-aware minifier |
+| `/css` | CSS/SCSS/Less formatting via Prettier standalone (optional peer, loaded on first use), errors with line and column, and a plain-CSS minifier |
+| `/csv` | RFC 4180 parsing in linear time with positioned issues, delimiter sniffing, column type hints, and JSON / Markdown / CSV / TSV output |
+| `/env` | .env ↔ JSON ↔ shell export ↔ docker env-file: dotenv-accurate parsing, safe quoting, positioned errors, JSON flattening |
+| `/cron` | 5- and 6-field cron and `@` macros, Vixie day OR semantics, next runs in any IANA zone with Vixie DST handling, never-fires detection, English via `cronstrue` |
+| `/escape` | JSON, JavaScript, SQL (standard/MySQL), POSIX shell, regex and HTML-entity escaping and strict unescaping, with positioned errors |
+| `/color` | CSS color parsing with positioned errors; sRGB ↔ HSL ↔ OKLCH; gamut detection and clipping; WCAG contrast and nearest passing foreground |
+| `/qr` | QR payloads for text, URLs and Wi-Fi, encoded to a module matrix, plus a single-path SVG |
+| `/lorem` | Lorem ipsum by exact word, sentence or paragraph count, as text, HTML or Markdown, seedable |
 | `/text` | Line/column offsets and character counts shared by the tools |
 | `/random` | Unbiased crypto random source and a seeded PRNG |
 
