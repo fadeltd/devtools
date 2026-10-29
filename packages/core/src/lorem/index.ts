@@ -1,2 +1,1 @@
-// Placeholder until the engine lands.
-export type Pending = never
+export * from './lorem.ts'
