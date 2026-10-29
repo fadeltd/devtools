@@ -301,9 +301,9 @@ export default function IdGenTool() {
               </span>
             </div>
             <div className="mt-1.5 flex items-center gap-2">
-              <span className="h-1.5 min-w-0 flex-1 rounded-[2px] bg-surface-2" aria-hidden>
+              <span className="h-1.5 min-w-0 flex-1 rounded-xs bg-surface-2" aria-hidden>
                 <span
-                  className={`block h-full rounded-[2px] ${
+                  className={`block h-full rounded-xs ${
                     verdict.level === 'weak'
                       ? 'bg-del'
                       : verdict.level === 'fair'

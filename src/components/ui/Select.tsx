@@ -18,7 +18,7 @@ export function Select({ className, style, ...rest }: SelectHTMLAttributes<HTMLS
         'min-h-11 shrink-0 appearance-none rounded-[4px] border border-border bg-bg',
         // Room for the chevron on the right, comfortable text inset on the left.
         'py-1 pl-2.5 pr-8 text-fg',
-        'bg-[length:14px_14px] bg-[right_8px_center] bg-no-repeat',
+        'bg-size-[14px_14px] bg-position-[right_8px_center] bg-no-repeat',
         'hover:border-border-strong md:min-h-7 md:py-0',
         className,
       )}

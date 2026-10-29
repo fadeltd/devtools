@@ -98,7 +98,7 @@ function describeClean(r: CleanResult): string {
 function CharCell({ row }: { row: CodePointRow }) {
   if (row.placeholder) {
     return (
-      <span className="justify-self-center border border-border bg-surface-2 px-1 text-[10px] leading-[14px] text-muted">
+      <span className="justify-self-center border border-border bg-surface-2 px-1 text-[10px] leading-3.5 text-muted">
         {row.display}
       </span>
     )
@@ -219,7 +219,7 @@ export default function UnicodeTool() {
         aria-rowcount={rowCount + 1}
         className="min-h-0 flex-1 overflow-auto bg-bg font-mono text-[13px] md:text-[12px] scroll-thin"
       >
-        <div className="min-w-[33rem]">
+        <div className="min-w-132">
           <div
             role="row"
             className={cn(

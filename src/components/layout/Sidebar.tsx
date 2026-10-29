@@ -97,7 +97,7 @@ export function Sidebar() {
         // Animating width needs overflow-hidden above, or the labels spill
         // across the main pane mid-transition. Respects reduced-motion.
         'transition-[width] duration-200 ease-out motion-reduce:transition-none',
-        sidebarCollapsed ? 'w-[52px]' : 'w-[220px]',
+        sidebarCollapsed ? 'w-13' : 'w-55',
       )}
     >
       {/* At the top, where it is actually visible, and aligned with the header

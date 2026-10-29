@@ -96,7 +96,7 @@ function IssueCard({ issue }: { issue: JsonIssue }) {
         </div>
       </div>
 
-      <pre className="mt-2 overflow-x-auto font-mono text-[12px] leading-[1.5] text-muted scroll-thin">
+      <pre className="mt-2 overflow-x-auto font-mono text-[12px] leading-normal text-muted scroll-thin">
         {issue.snippet.lines.map((l) => (
           <span key={l.number}>
             <span className={l.number === issue.snippet.caretLine ? 'text-fg' : undefined}>

@@ -83,7 +83,7 @@ function Row({ label, value, note }: { label: string; value: string | null; note
   return (
     <div className="flex items-center gap-3 border-b border-border px-3 py-2 md:py-1.5">
       <div className="min-w-0 flex-1 md:flex md:items-baseline md:gap-3">
-        <div className="text-[12px] text-muted md:w-[168px] md:shrink-0">{label}</div>
+        <div className="text-[12px] text-muted md:w-42 md:shrink-0">{label}</div>
         <div className="min-w-0 break-all font-mono text-[13px] text-fg">
           {value ?? <span className="text-faint">{note ?? '—'}</span>}
         </div>
@@ -170,7 +170,7 @@ export default function TimestampTool() {
               className="self-start"
             />
             <Select
-              className="w-full md:w-auto md:min-w-[240px]"
+              className="w-full md:w-auto md:min-w-60"
               value={state.timeZone}
               onChange={(e) => setState((p) => ({ ...p, timeZone: e.target.value }))}
               aria-label="Time zone"

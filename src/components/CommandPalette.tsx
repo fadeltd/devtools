@@ -49,7 +49,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
         shouldFilter={false}
         loop
         label="Search tools"
-        className="panel relative z-10 flex max-h-[400px] w-full max-w-[640px] flex-col overflow-hidden bg-surface-2"
+        className="panel relative z-10 flex max-h-100 w-full max-w-160 flex-col overflow-hidden bg-surface-2"
         onKeyDown={(e) => {
           if (e.key === 'Escape') {
             e.preventDefault()
@@ -73,7 +73,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
           {recent.length > 0 && (
             <Command.Group
               heading="Recent"
-              className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-faint"
+              className="**:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1 **:[[cmdk-group-heading]]:text-[10px] **:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-wider **:[[cmdk-group-heading]]:text-faint"
             >
               {recent.map((tool) => (
                 <ToolRow
@@ -88,7 +88,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
 
           <Command.Group
             heading="Tools"
-            className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-faint"
+            className="**:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1 **:[[cmdk-group-heading]]:text-[10px] **:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-wider **:[[cmdk-group-heading]]:text-faint"
           >
             {rest.map((tool) => (
               <ToolRow
@@ -102,7 +102,7 @@ export function CommandPalette({ open, onOpenChange }: Props) {
 
           <Command.Group
             heading="Actions"
-            className="[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:py-1 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wider [&_[cmdk-group-heading]]:text-faint"
+            className="**:[[cmdk-group-heading]]:px-2 **:[[cmdk-group-heading]]:py-1 **:[[cmdk-group-heading]]:text-[10px] **:[[cmdk-group-heading]]:font-semibold **:[[cmdk-group-heading]]:uppercase **:[[cmdk-group-heading]]:tracking-wider **:[[cmdk-group-heading]]:text-faint"
           >
             {/* Pinning is an action you go looking for, so it only appears
                 once you have typed something. */}
@@ -181,7 +181,7 @@ function ToolRow({
       <tool.icon size={15} className="shrink-0" aria-hidden />
       <span className="flex-1 truncate">{tool.title}</span>
       {pinIndex >= 0 && (
-        <kbd className="rounded-[4px] border border-border bg-white/[0.04] px-1 font-mono text-[10px]">
+        <kbd className="rounded-[4px] border border-border bg-white/4 px-1 font-mono text-[10px]">
           {renderCombo(`mod+${pinIndex + 1}`)}
         </kbd>
       )}
