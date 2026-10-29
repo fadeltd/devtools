@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { safeFilenameLines, slugifyLines } from './lines.ts'
+import { findFilenameCollisions, safeFilenameLines, slugifyLines } from './lines.ts'
 
 describe('slugifyLines', () => {
   it('slugs each line', () => {
@@ -68,5 +68,57 @@ describe('safeFilenameLines', () => {
     expect(r.summary.truncated).toBe(1)
     expect(r.summary.fallback).toBe(1)
     expect(r.output.split('\n')[1]).toBe('untitled')
+  })
+})
+
+describe('filename collisions', () => {
+  it('reports names that differ only by case as 1-based line groups', () => {
+    const r = safeFilenameLines('a.txt\nReport.pdf\nb.txt\n\nc.txt\nd.txt\nREPORT.pdf')
+    expect(r.collisions).toEqual({ exact: [], caseOnly: [[2, 7]] })
+  })
+
+  it('reports exact duplicates separately', () => {
+    const r = safeFilenameLines('x\ny\nx\ny\ny')
+    expect(r.collisions).toEqual({ exact: [[1, 3], [2, 4, 5]], caseOnly: [] })
+  })
+
+  it('lists an exact repeat inside a case group in both', () => {
+    const r = safeFilenameLines('a\nA\na')
+    expect(r.collisions.exact).toEqual([[1, 3]])
+    expect(r.collisions.caseOnly).toEqual([[1, 2, 3]])
+  })
+
+  it('compares the cleaned names, not the input', () => {
+    // Both become "a_b.txt" once ":" and "?" are replaced.
+    const r = safeFilenameLines('a:b.txt\na?b.txt\nA_B.TXT')
+    expect(r.output).toBe('a_b.txt\na_b.txt\nA_B.TXT')
+    expect(r.collisions).toEqual({ exact: [[1, 2]], caseOnly: [[1, 2, 3]] })
+  })
+
+  it('counts fallback names: two lines with nothing usable are both untitled', () => {
+    expect(safeFilenameLines('...\n....').collisions.exact).toEqual([[1, 2]])
+  })
+
+  it('ignores blank lines but keeps their line numbers', () => {
+    expect(safeFilenameLines('a\n\n\nA').collisions.caseOnly).toEqual([[1, 4]])
+  })
+
+  it('folds non-ASCII case', () => {
+    expect(findFilenameCollisions(['Ünïcode', 'ünÏCODE']).caseOnly).toEqual([[1, 2]])
+  })
+
+  it('treats composed and decomposed forms as one name, as APFS does', () => {
+    const composed = 'caf\u00e9'
+    const decomposed = 'cafe\u0301'
+    expect(findFilenameCollisions([composed, decomposed])).toEqual({ exact: [], caseOnly: [[1, 2]] })
+  })
+
+  it('does not merge ß with ss: filesystems use simple case mapping', () => {
+    expect(findFilenameCollisions(['straße', 'STRASSE']).caseOnly).toEqual([])
+  })
+
+  it('reports nothing for distinct names', () => {
+    expect(safeFilenameLines('a\nb\nc').collisions).toEqual({ exact: [], caseOnly: [] })
+    expect(safeFilenameLines('').collisions).toEqual({ exact: [], caseOnly: [] })
   })
 })

@@ -15,6 +15,7 @@ import {
   safeFilenameLines,
   slugifyLines,
   type FilenameReplacement,
+  type LineGroups,
   type SlugSeparator,
 } from '@fadeltd/devtools-core/slug'
 
@@ -46,6 +47,25 @@ const MODES = [
 const plural = (n: number, one: string, many = `${one}s`) =>
   `${formatCount(n)} ${n === 1 ? one : many}`
 
+/** Enough line numbers to find the first few clashes; the rest would only wrap the note. */
+const MAX_LISTED_LINES = 12
+
+/** "4 names collide on Windows/macOS: lines 3, 7; 4, 9", one "; " between groups. */
+function collisionNote(groups: LineGroups, what: string): string {
+  const total = groups.reduce((n, g) => n + g.length, 0)
+  const listed: string[] = []
+  let budget = MAX_LISTED_LINES
+  for (const group of groups) {
+    if (budget <= 0) break
+    const take = group.slice(0, budget)
+    budget -= take.length
+    // Plain digits: "1,234" would read as two line numbers in a comma list.
+    listed.push(take.join(', ') + (take.length < group.length ? ', …' : ''))
+  }
+  const more = listed.length < groups.length ? '; …' : ''
+  return `${formatCount(total)} names ${what}: lines ${listed.join('; ')}${more}`
+}
+
 export default function SlugTool() {
   useToolUsageTracker('slug')
   const { state, setState, reset } = useToolState<State>('slug', INITIAL)
@@ -53,8 +73,9 @@ export default function SlugTool() {
     setState((p) => ({ ...p, [key]: value }))
 
   const deferred = useDeferredValue(state)
-  const { output, notes } = useMemo(() => {
-    if (deferred.input === '') return { output: '', notes: [] as string[] }
+  const { output, notes, warnings } = useMemo(() => {
+    const none: string[] = []
+    if (deferred.input === '') return { output: '', notes: none, warnings: none }
 
     if (deferred.mode === 'slug') {
       const r = slugifyLines(deferred.input, {
@@ -66,7 +87,7 @@ export default function SlugTool() {
       })
       const slugNotes = [plural(r.lines, 'line')]
       if (r.empty > 0) slugNotes.push(`${plural(r.empty, 'line')} had nothing to slug`)
-      return { output: r.output, notes: slugNotes }
+      return { output: r.output, notes: slugNotes, warnings: none }
     }
 
     const r = safeFilenameLines(deferred.input, { replacement: deferred.replacement })
@@ -81,7 +102,11 @@ export default function SlugTool() {
     if (s.trimmed > 0) fileNotes.push(`${formatCount(s.trimmed)} trimmed`)
     if (s.truncated > 0) fileNotes.push(`${formatCount(s.truncated)} cut to 255 bytes`)
     if (s.fallback > 0) fileNotes.push(`${formatCount(s.fallback)} empty, named untitled`)
-    return { output: r.output, notes: fileNotes }
+    const fileWarnings: string[] = []
+    const { exact, caseOnly } = r.collisions
+    if (exact.length > 0) fileWarnings.push(collisionNote(exact, 'repeat exactly'))
+    if (caseOnly.length > 0) fileWarnings.push(collisionNote(caseOnly, 'collide on Windows/macOS'))
+    return { output: r.output, notes: fileNotes, warnings: fileWarnings }
   }, [deferred])
 
   useShortcuts([
@@ -181,6 +206,11 @@ export default function SlugTool() {
             {notes.length > 0 && (
               <div className="shrink-0 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
                 {notes.join(' · ')}
+                {warnings.map((w) => (
+                  <p key={w} className="text-warn">
+                    {w}
+                  </p>
+                ))}
               </div>
             )}
           </div>

@@ -217,8 +217,8 @@ const RAW_TOOLS = [
   {
     slug: 'jwt',
     title: 'JWT Decoder',
-    blurb: 'Decode a JSON Web Token’s header and payload, with exp, iat and nbf as real dates and an expiry check.',
-    keywords: ['jwt', 'json web token', 'decode', 'bearer token', 'jws', 'claims', 'exp', 'jwt.io', 'jwe', 'authorization header'],
+    blurb: 'Decode a JSON Web Token, see exp, iat and nbf as real dates, and verify its signature against a pasted key.',
+    keywords: ['jwt', 'json web token', 'decode', 'bearer token', 'jws', 'claims', 'exp', 'jwt.io', 'jwe', 'authorization header', 'verify', 'signature', 'jwks', 'jwk'],
     category: 'crypto',
     icon: FileKey2,
     load: () => import('@/tools/jwt/JwtTool'),

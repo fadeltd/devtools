@@ -6,7 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- JWT Decoder: check the signature against a key you paste: a public key as PEM (PUBLIC KEY, RSA PUBLIC KEY or a certificate), a JWK, a JWKS `{"keys": […]}` picked by the token's `kid`, or the HS secret as text, base64 or base64url. It covers HS, RS, PS and ES at 256/384/512 and EdDSA, and shows "Signature valid" or "Signature invalid" next to the expiry badge with the reason. `alg: none`, an HMAC token checked against a public key (algorithm confusion) and DER-encoded ECDSA signatures are refused with an explanation. The key is never saved. A JWKS URL can't be fetched from this site, so paste the JSON instead.
+- Slug Generator: in Filename mode, names that differ only by case are flagged, since Windows and macOS treat them as the same file ("2 names collide on Windows/macOS: lines 3, 7"), and so are exact duplicates.
+
+### Changed
+- URL Encode / Decode: the parameter table now shows every parameter, however many there are, instead of stopping at the first 300.
+
+### Fixed
+- Text to Binary / Hex: a large paste no longer freezes the page. Once the output passes 1 MB, the output pane shows the first 64K characters and says how much is hidden; Copy and the new Download button still give you all of it.
+- Number Converter: screen readers now announce each permission checkbox by name ("Owner read", "Group write") instead of a bare "r" or "w".
 
 ## [0.10.0] — 2026-10-29
 

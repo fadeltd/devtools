@@ -56,10 +56,13 @@ if (r.ok) r.formatted.isoZoned // '2023-11-15T03:43:20.000+05:30'
 ```
 
 ```js
-import { decodeJwt } from '@fadeltd/devtools-core/jwt'
+import { decodeJwt, verifyJwt } from '@fadeltd/devtools-core/jwt'
 
 const jwt = decodeJwt(token, { now: Date.now(), clockSkewSeconds: 60 })
-jwt.status // 'valid' | 'expired' | 'not-yet-valid' | 'no-expiry' | 'unknown' | null — the signature is never verified
+jwt.status // 'valid' | 'expired' | 'not-yet-valid' | 'no-expiry' | 'unknown' | null — expiry only
+
+await verifyJwt(token, publicKeyPem) // { status: 'valid', alg: 'RS256', format: 'pem' }
+await verifyJwt(token, jwksJson) // picks the key by the header's kid
 ```
 
 ```js
@@ -94,10 +97,10 @@ clean('a\u00a0b\u200bc').text // 'a bc'
 | `/text-stats` | Characters (four meanings), words, sentences (abbreviation-aware), paragraphs, reading time, word and phrase frequency |
 | `/html-text` | Readable text from HTML that keeps paragraphs, lists and tables |
 | `/timestamp` | Epoch s/ms/µs/ns ↔ ISO 8601 / RFC 3339 on BigInt nanoseconds, IANA zone offsets via `Intl`, HTTP-date, relative time, ISO week |
-| `/jwt` | JWS/JWE decoding (never verification), claim dates and expiry status, `alg: none` and malformed-segment warnings |
+| `/jwt` | JWS/JWE decoding, claim dates and expiry status, and signature verification against a JWK, JWKS, PEM or HS secret, refusing `alg: none` and algorithm confusion |
 | `/url` | Component, full-URI and form percent-encoding; decoding with malformed-escape positions; query-string parse and rebuild |
 | `/hash` | SHA digests, HMAC with text/hex/base64 keys, constant-time compare, GitHub/Stripe/Slack webhook signing and verification with timestamp tolerance |
-| `/slug` | URL slugs with transliteration and camelCase splitting; cross-platform safe filenames |
+| `/slug` | URL slugs with transliteration and camelCase splitting; cross-platform safe filenames with case-collision detection |
 | `/text-bytes` | UTF-8 text ↔ binary, hex, decimal or octal, with format auto-detection and invalid-UTF-8 offsets |
 | `/number` | BigInt base conversion 2–36 with two's complement, SI/IEC byte sizes, Unix permissions and chmod commands |
 | `/unicode` | Per-code-point inspection, invisible/bidi/tag/space flags with names, and an emoji-safe `clean()` |
