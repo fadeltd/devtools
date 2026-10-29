@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.8.0] — 2026-10-29
+
 ### Added
 - Timestamp Converter: paste a Unix timestamp in seconds, milliseconds, microseconds or nanoseconds (the unit is detected for you), or an ISO 8601 date, and see it as ISO 8601 in UTC and in any time zone with its real offset, as an HTTP date, a readable local date, a relative time like "3 hours ago", the weekday and the ISO week, each with its own Copy button.
 - JWT Decoder: paste a JSON Web Token, with or without `Bearer`, to see its header and payload, its `exp`, `iat` and `nbf` as real dates in your time zone and UTC, and whether it has expired, with warnings for `alg: none`, missing expiry and malformed segments. Encrypted tokens show their header. Nothing you paste is ever saved.

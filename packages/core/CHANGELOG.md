@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] — 2026-10-29
+
 ### Added
 - `/timestamp`: parse Unix epochs in s/ms/µs/ns (unit auto-detected, exact to the nanosecond on BigInt) and strict ISO 8601 / RFC 3339, and format them as ISO in UTC or any IANA zone with its real offset, HTTP-date, relative time and ISO week.
 - `/jwt`: decode JWS and JWE compact tokens without verifying them: strict base64url per segment with positioned errors, `exp`/`iat`/`nbf` as dates, expiry status with clock skew, and warnings for `alg: none`, missing expiry and lossy big-number claims.
