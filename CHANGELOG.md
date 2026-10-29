@@ -6,7 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+- Number Converter: screen readers now announce each permission checkbox by name ("Owner read", "Group write") instead of a bare "r" or "w".
 
 ## [0.10.0] — 2026-10-29
 

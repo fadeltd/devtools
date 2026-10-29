@@ -46,6 +46,8 @@ const EMPTY_MATRIX: PermMatrix = [
 const NO_SPECIAL: SpecialBits = { setuid: false, setgid: false, sticky: false }
 const WHO = ['Owner', 'Group', 'Other'] as const
 const RWX = ['r', 'w', 'x'] as const
+// The grid shows bare r/w/x, so each checkbox gets a full name for screen readers.
+const RWX_NAMES = ['read', 'write', 'execute'] as const
 
 const field =
   'min-h-11 w-full min-w-0 rounded-[4px] border border-border bg-bg px-2 font-mono text-fg md:min-h-7'
@@ -355,7 +357,12 @@ function PermsSection({ state, set }: { state: State; set: <K extends keyof Stat
             <div key={who} className="contents">
               <span className="text-[12px] text-muted">{who}</span>
               {RWX.map((letter, b) => (
-                <Toggle key={letter} checked={matrix[w]?.[b] === true} onChange={(v) => toggleBit(w, b, v)}>
+                <Toggle
+                  key={letter}
+                  checked={matrix[w]?.[b] === true}
+                  onChange={(v) => toggleBit(w, b, v)}
+                  aria-label={`${who} ${RWX_NAMES[b]}`}
+                >
                   <span className="font-mono">{letter}</span>
                 </Toggle>
               ))}
