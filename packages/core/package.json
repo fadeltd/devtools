@@ -75,7 +75,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/fadeltd/devtools.git",
+    "url": "git+https://github.com/fadeltd/devtools.git",
     "directory": "packages/core"
   },
   "homepage": "https://github.com/fadeltd/devtools/tree/main/packages/core#readme",

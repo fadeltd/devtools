@@ -68,6 +68,8 @@ Merging to `main` then does the rest, automatically:
 3. Bumps `version` in `package.json`, commits that back to `main`, and pushes the tag `vx.y.z`.
 4. **The tag** triggers the deploy to Cloudflare. Merging alone never deploys.
 
+**Never create or push a `v*` or `core-v*` tag yourself.** Release tags the release commit, the one that bumps the version. A hand-made tag on the merge commit points at code whose `package.json` still has the old version, and Release now refuses to continue when it finds one. To look at or publish a release locally, wait for the tag to appear (`git fetch --tags`).
+
 An empty `[Unreleased]` releases nothing, so a docs-only or refactor merge ships nothing. That is deliberate: merging and releasing are separate decisions.
 
 Deploy is always started explicitly by Release, never left to the tag event. A tag pushed by automation may or may not trigger `on: push: tags` depending on which credential pushed it, and a deploy that silently does not happen looks exactly like a deploy that succeeded. Dispatching every time is deterministic, and Deploy is idempotent so a duplicate run is harmless.
@@ -80,21 +82,16 @@ Before 1.0, a minor version of the package may change its API, so mark those ent
 
 Publishing uses npm **trusted publishing**: npm checks that the upload comes from `release.yml` in `fadeltd/devtools` over OIDC, so no npm token is stored anywhere and nothing needs rotating. Provenance is attached automatically.
 
-#### First publish
+#### Trusted publisher setup
 
-npm only accepts a trusted publisher for a package that already exists, so the first version goes up by hand, once. After the merge that cuts it (Release reports "not on npm yet"), from the release tag:
+npm only accepts a trusted publisher for a package name that exists on the registry. For `@fadeltd/devtools-core` this is already done: the name is registered with an empty `0.0.0-stage` placeholder (no code, nothing installable), and `release.yml` in `fadeltd/devtools` is its trusted publisher. Every version, including the first, is published by CI. To check or redo it, logged in to npm with 2FA:
 
 ```bash
-git fetch --tags && git checkout core-v0.1.0
-pnpm install && pnpm core:build
-cd packages/core
-npm login                                   # your npm account, with 2FA
-npm publish --access public
+npm trust list @fadeltd/devtools-core
 npm trust github @fadeltd/devtools-core --repo fadeltd/devtools --file release.yml --allow-publish
-npm trust list @fadeltd/devtools-core       # confirm it
 ```
 
-This first version has no provenance badge (provenance needs CI). From then on, every merge that cuts a `core-v*` tag publishes on its own. Optionally, set the package's publishing access on npmjs.com to "Require two-factor authentication and disallow tokens" so that trusted publishing is the only way in.
+Renaming the workflow file breaks publishing until the trust is updated to match. Optionally, set the package's publishing access on npmjs.com to "Require two-factor authentication and disallow tokens", so trusted publishing is the only way in.
 
 Two notes for anyone editing the workflows:
 
