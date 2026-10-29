@@ -1,4 +1,12 @@
 import { cryptoRandomSource, unbiasedBelow, type RandomSource } from '../random/random.ts'
+import { CROCKFORD, ULID_ENTROPY_BITS, UlidOverflowError, ulidGenerator } from './ulid.ts'
+import {
+  UUID_V4_ENTROPY_BITS,
+  UUID_V7_ENTROPY_BITS,
+  formatUuid,
+  uuidV4Bytes,
+  uuidV7Generator,
+} from './uuid.ts'
 
 /**
  * Prefixed identifier generation, in the shape Stripe popularised:
@@ -35,7 +43,22 @@ export type AlphabetName = keyof typeof ALPHABETS
  */
 const AMBIGUOUS = new Set('O0oIl1|`\'"~,.;:')
 
+/**
+ * What the part after the prefix is. `random` draws `length` characters from
+ * an alphabet; the others are fixed-shape standard ids, for which length,
+ * alphabet and the ambiguity filter do not apply.
+ */
+export type IdFormat = 'random' | 'uuid-v4' | 'uuid-v7' | 'ulid'
+
+/**
+ * `canonical` is each format's standard case: lowercase for a UUID (RFC 9562),
+ * uppercase for a ULID. One setting rather than an "uppercase" boolean, so
+ * switching format never silently leaves a ULID in non-canonical case.
+ */
+export type LetterCase = 'canonical' | 'lower' | 'upper'
+
 export interface IdOptions {
+  format: IdFormat
   prefix: string
   separator: string
   /** Length of the random portion only, excluding prefix and separator. */
@@ -44,15 +67,22 @@ export interface IdOptions {
   customAlphabet?: string
   excludeAmbiguous: boolean
   count: number
+  /** UUID and ULID only. Ignored by `random`, which takes its case from the alphabet. */
+  letterCase: LetterCase
+  /** UUID only: the 8-4-4-4-12 grouping. */
+  hyphens: boolean
 }
 
 export const DEFAULT_OPTIONS: IdOptions = {
+  format: 'random',
   prefix: 'sk_live',
   separator: '_',
   length: 24,
   alphabet: 'alphanumeric',
   excludeAmbiguous: false,
   count: 10,
+  letterCase: 'canonical',
+  hyphens: true,
 }
 
 /** Deduplicated so a repeated character cannot skew the distribution. */
@@ -73,20 +103,70 @@ export function resolveAlphabet(options: Pick<IdOptions, 'alphabet' | 'customAlp
   return out
 }
 
-export type GenerateError = 'empty-alphabet' | 'invalid-length' | 'invalid-count'
+export type GenerateError =
+  | 'empty-alphabet'
+  | 'invalid-length'
+  | 'invalid-count'
+  /** The clock is outside the 48-bit ms range a UUID v7 or ULID can encode. */
+  | 'time-out-of-range'
+  /** A monotonic ULID's random part overflowed within one millisecond. */
+  | 'ulid-overflow'
 
 export interface GenerateResult {
   ids: string[]
+  /** Characters the random portion is drawn from: 16 for a UUID, 32 for a ULID. */
   alphabetSize: number
-  /** Entropy of the random portion. The prefix contributes none -- it is public. */
+  /**
+   * Entropy of the random portion. The prefix contributes none -- it is
+   * public -- and neither do a UUID's version and variant bits, a v7's
+   * timestamp and counter, or a ULID's timestamp.
+   */
   entropyBits: number
+  /**
+   * Set for formats whose entropy figure alone would overstate what the id is
+   * good for. `strength()` rates bits; this says what the bits cannot.
+   */
+  caveat?: string
   error?: GenerateError
 }
 
 export const MAX_COUNT = 1000
 export const MAX_LENGTH = 512
 
-export function generateIds(options: IdOptions, source?: RandomSource): GenerateResult {
+const TIME_ORDERED_CAVEAT =
+  'Time-ordered: anyone holding the id can read when it was made. Use it as an identifier, never as a secret.'
+
+const FORMAT_ENTROPY: Record<Exclude<IdFormat, 'random'>, { alphabetSize: number; entropyBits: number; caveat?: string }> = {
+  'uuid-v4': { alphabetSize: 16, entropyBits: UUID_V4_ENTROPY_BITS },
+  'uuid-v7': { alphabetSize: 16, entropyBits: UUID_V7_ENTROPY_BITS, caveat: TIME_ORDERED_CAVEAT },
+  ulid: {
+    alphabetSize: CROCKFORD.length,
+    entropyBits: ULID_ENTROPY_BITS,
+    caveat:
+      'Time-ordered: anyone holding the id can read when it was made, and ids from the same millisecond count up by one, so one reveals its neighbours. Use it as an identifier, never as a secret.',
+  },
+}
+
+function isValidCount(count: number): boolean {
+  return Number.isInteger(count) && count >= 1 && count <= MAX_COUNT
+}
+
+/**
+ * Generate a batch of ids.
+ *
+ * `now` is the clock for the time-ordered formats (UUID v7, ULID). A batch
+ * shares one monotonic generator, so ids made in the same millisecond still
+ * sort in the order they were generated.
+ */
+export function generateIds(
+  options: IdOptions,
+  source?: RandomSource,
+  now?: () => number,
+): GenerateResult {
+  // Persisted state from before formats existed has no `format`; treat it as random.
+  const format = options.format ?? 'random'
+  if (format !== 'random') return generateStandardIds(format, options, source, now)
+
   const alphabet = resolveAlphabet(options)
   const alphabetSize = alphabet.length
 
@@ -96,7 +176,7 @@ export function generateIds(options: IdOptions, source?: RandomSource): Generate
   if (!Number.isInteger(options.length) || options.length < 1 || options.length > MAX_LENGTH) {
     return { ids: [], alphabetSize, entropyBits: 0, error: 'invalid-length' }
   }
-  if (!Number.isInteger(options.count) || options.count < 1 || options.count > MAX_COUNT) {
+  if (!isValidCount(options.count)) {
     return { ids: [], alphabetSize, entropyBits: 0, error: 'invalid-count' }
   }
 
@@ -116,6 +196,49 @@ export function generateIds(options: IdOptions, source?: RandomSource): Generate
   }
 
   return { ids, alphabetSize, entropyBits: entropyBits(alphabetSize, options.length) }
+}
+
+function generateStandardIds(
+  format: Exclude<IdFormat, 'random'>,
+  options: IdOptions,
+  source: RandomSource | undefined,
+  now: (() => number) | undefined,
+): GenerateResult {
+  const { alphabetSize, entropyBits: bits, caveat } = FORMAT_ENTROPY[format]
+  const fail = (error: GenerateError): GenerateResult => ({ ids: [], alphabetSize, entropyBits: 0, error })
+  if (!isValidCount(options.count)) return fail('invalid-count')
+
+  const next = source ?? cryptoRandomSource()
+  const head = options.prefix === '' ? '' : options.prefix + options.separator
+  const letterCase = options.letterCase ?? 'canonical'
+  const clock = now === undefined ? {} : { now }
+
+  let make: () => string
+  if (format === 'ulid') {
+    const gen = ulidGenerator({ source: next, ...clock })
+    make = letterCase === 'lower' ? () => gen().toLowerCase() : gen
+  } else {
+    const uuidFormat = { uppercase: letterCase === 'upper', hyphens: options.hyphens !== false }
+    if (format === 'uuid-v4') {
+      make = () => formatUuid(uuidV4Bytes(next), uuidFormat)
+    } else {
+      const gen = uuidV7Generator({ source: next, ...clock })
+      make = () => formatUuid(gen(), uuidFormat)
+    }
+  }
+
+  const ids: string[] = []
+  try {
+    for (let n = 0; n < options.count; n++) ids.push(head + make())
+  } catch (e) {
+    // Never return a partial batch: a truncated list could pass for a full one.
+    if (e instanceof UlidOverflowError) return fail('ulid-overflow')
+    if (e instanceof RangeError) return fail('time-out-of-range')
+    throw e
+  }
+  const result: GenerateResult = { ids, alphabetSize, entropyBits: bits }
+  if (caveat !== undefined) result.caveat = caveat
+  return result
 }
 
 export function entropyBits(alphabetSize: number, length: number): number {
@@ -177,32 +300,33 @@ export const PRESETS: readonly Preset[] = [
   {
     name: 'Stripe secret key',
     description: 'sk_live_ plus 24 alphanumeric characters',
-    options: { prefix: 'sk_live', separator: '_', length: 24, alphabet: 'alphanumeric' },
+    options: { format: 'random', prefix: 'sk_live', separator: '_', length: 24, alphabet: 'alphanumeric' },
   },
   {
     name: 'Stripe test key',
     description: 'sk_test_ plus 24 alphanumeric characters',
-    options: { prefix: 'sk_test', separator: '_', length: 24, alphabet: 'alphanumeric' },
+    options: { format: 'random', prefix: 'sk_test', separator: '_', length: 24, alphabet: 'alphanumeric' },
   },
   {
     name: 'Object id',
     description: 'A short prefixed id, e.g. cus_ or evt_',
-    options: { prefix: 'cus', separator: '_', length: 14, alphabet: 'alphanumeric' },
+    options: { format: 'random', prefix: 'cus', separator: '_', length: 14, alphabet: 'alphanumeric' },
   },
   {
     name: 'API token',
     description: '40 alphanumeric characters, no prefix',
-    options: { prefix: '', separator: '', length: 40, alphabet: 'alphanumeric' },
+    options: { format: 'random', prefix: '', separator: '', length: 40, alphabet: 'alphanumeric' },
   },
   {
     name: 'Hex token',
     description: '32 hex characters, like a session id',
-    options: { prefix: '', separator: '', length: 32, alphabet: 'hex' },
+    options: { format: 'random', prefix: '', separator: '', length: 32, alphabet: 'hex' },
   },
   {
     name: 'Password',
     description: '20 characters with symbols, ambiguous glyphs removed',
     options: {
+      format: 'random',
       prefix: '',
       separator: '',
       length: 20,
@@ -214,7 +338,27 @@ export const PRESETS: readonly Preset[] = [
   {
     name: 'Readable code',
     description: 'base58 with ambiguous glyphs removed, for codes people retype',
-    options: { prefix: '', separator: '', length: 10, alphabet: 'base58', excludeAmbiguous: true },
+    options: { format: 'random', prefix: '', separator: '', length: 10, alphabet: 'base58', excludeAmbiguous: true },
+  },
+  {
+    name: 'UUID v4',
+    description: 'Random UUID in RFC 9562 canonical form',
+    options: { format: 'uuid-v4', prefix: '', separator: '', letterCase: 'canonical', hyphens: true },
+  },
+  {
+    name: 'UUID v7',
+    description: 'Time-ordered UUID: sorts by creation time, good as a database key',
+    options: { format: 'uuid-v7', prefix: '', separator: '', letterCase: 'canonical', hyphens: true },
+  },
+  {
+    name: 'ULID',
+    description: '26 characters of Crockford base32, time-ordered',
+    options: { format: 'ulid', prefix: '', separator: '', letterCase: 'canonical' },
+  },
+  {
+    name: 'Prefixed ULID',
+    description: 'A typed, time-ordered object id such as user_01J…',
+    options: { format: 'ulid', prefix: 'user', separator: '_', letterCase: 'canonical' },
   },
 ]
 

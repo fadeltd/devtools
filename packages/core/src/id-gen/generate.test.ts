@@ -257,3 +257,39 @@ describe('matchingPreset', () => {
     expect(matchingPreset(opts({ ...stripe.options, count: 99 }))).toBe('Stripe secret key')
   })
 })
+
+describe('formats', () => {
+  it('a preset for a random format does not match once the format changes', () => {
+    const stripe = PRESETS.find((p) => p.name === 'Stripe secret key')!
+    expect(matchingPreset(opts({ ...stripe.options, format: 'uuid-v7' }))).toBeNull()
+  })
+
+  it('the UUID and ULID presets produce their format', () => {
+    const shapes: Record<string, RegExp> = {
+      'UUID v4': /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      'UUID v7': /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+      ULID: /^[0-7][0-9A-HJKMNP-TV-Z]{25}$/,
+      'Prefixed ULID': /^user_[0-7][0-9A-HJKMNP-TV-Z]{25}$/,
+    }
+    // Start from a state with the random-only fields set oddly, as a user
+    // switching from a custom random setup would have.
+    const start = opts({ prefix: 'x', separator: '-', alphabet: 'custom', customAlphabet: '', letterCase: 'upper' })
+    for (const [name, shape] of Object.entries(shapes)) {
+      const preset = PRESETS.find((p) => p.name === name)!
+      const r = generateIds({ ...start, ...preset.options })
+      expect(r.ids.length, name).toBeGreaterThan(0)
+      for (const id of r.ids) expect(id, name).toMatch(shape)
+    }
+  })
+
+  it('treats options saved before formats existed as a random string', () => {
+    const { format: _f, letterCase: _l, hyphens: _h, ...legacy } = DEFAULT_OPTIONS
+    const r = generateIds(legacy as IdOptions)
+    expect(r.error).toBeUndefined()
+    expect(r.ids[0]).toMatch(/^sk_live_[A-Za-z0-9]{24}$/)
+  })
+
+  it('a random string carries no time-ordering caveat', () => {
+    expect(generateIds(DEFAULT_OPTIONS).caveat).toBeUndefined()
+  })
+})
