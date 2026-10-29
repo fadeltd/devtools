@@ -7,6 +7,10 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.6.0] — 2026-10-29
+
 ### Added
 - List Tools: chain operations. Build steps like "remove duplicates → natural
   sort → add prefix `sk_live_`" on one screen; each step shows how many lines
