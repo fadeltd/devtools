@@ -117,7 +117,7 @@ function ErrorLine({ input, error }: { input: string; error: InputError }) {
       {context !== null && (
         <div className="mt-1 break-all font-mono text-[12px] text-muted">
           {context.before}
-          <span className="rounded-[2px] bg-del px-px text-bg">{context.bad === '' ? ' ' : context.bad}</span>
+          <span className="rounded-xs bg-del px-px text-bg">{context.bad === '' ? ' ' : context.bad}</span>
           {context.after}
         </div>
       )}

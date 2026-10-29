@@ -21,7 +21,7 @@ export function ShortcutCheatsheet({ open, onClose }: { open: boolean; onClose: 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <button type="button" aria-label="Close" onClick={onClose} className="absolute inset-0" />
-      <div className="panel relative z-10 max-h-[80vh] w-full max-w-[560px] overflow-y-auto p-4 scroll-thin">
+      <div className="panel relative z-10 max-h-[80vh] w-full max-w-140 overflow-y-auto p-4 scroll-thin">
         <h2 className="text-[13px] font-semibold">Keyboard shortcuts</h2>
         {groups.size === 0 && (
           <p className="mt-3 text-[13px] text-faint">No shortcuts registered.</p>

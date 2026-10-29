@@ -178,5 +178,5 @@ export function MergePane(props: MergePaneProps) {
     // handle has to be rebuilt.
   }, [onReady, mode])
 
-  return <div ref={host} className="h-full min-h-0 [&>*]:h-full scroll-thin" />
+  return <div ref={host} className="h-full min-h-0 *:h-full scroll-thin" />
 }

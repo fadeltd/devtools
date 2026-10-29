@@ -57,7 +57,7 @@ export function ToolFrame({
         {actions !== undefined && (
           <div
             className="flex items-center gap-1.5 overflow-x-auto px-3 py-2
-                       [scrollbar-width:none] [&::-webkit-scrollbar]:hidden
+                       scrollbar-none [&::-webkit-scrollbar]:hidden
                        md:flex-1 md:flex-wrap md:justify-end md:overflow-visible md:px-0 md:py-0"
           >
             {actions}

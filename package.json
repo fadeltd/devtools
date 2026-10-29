@@ -17,6 +17,7 @@
     "lint": "oxlint",
     "deploy": "pnpm build && wrangler deploy",
     "seo": "vite-node scripts/seo.ts",
+    "tw:fix": "vite-node scripts/tw-fix.ts",
     "core:build": "pnpm --filter @fadeltd/devtools-core build"
   },
   "dependencies": {
@@ -36,6 +37,7 @@
     "react-router": "8.4.0"
   },
   "devDependencies": {
+    "@tailwindcss/node": "4.3.3",
     "@tailwindcss/vite": "4.3.3",
     "@types/node": "24.9.2",
     "@types/react": "19.3.0",

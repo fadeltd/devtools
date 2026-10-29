@@ -222,7 +222,7 @@ function ParamsPanel({
           {rows.length === 0 ? (
             <p className="px-3 py-2 text-[12px] text-faint">No query parameters.</p>
           ) : (
-            <table className="w-full border-collapse font-mono text-[12px] leading-[18px]">
+            <table className="w-full border-collapse font-mono text-[12px] leading-4.5">
               <thead>
                 <tr className="border-b border-border text-left font-sans text-[11px] text-faint">
                   <th className="w-[30%] px-3 py-1 font-medium">Key</th>

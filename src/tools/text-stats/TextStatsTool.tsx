@@ -249,9 +249,9 @@ export default function TextStatsTool() {
                       </span>
                       {/* The bar sits in its own track so a full-width bar cannot
                           push the numbers -- which are the actual data -- off the row. */}
-                      <span className="h-1.5 min-w-0 flex-1 rounded-[2px] bg-surface-2" aria-hidden>
+                      <span className="h-1.5 min-w-0 flex-1 rounded-xs bg-surface-2" aria-hidden>
                         <span
-                          className="block h-full rounded-[2px] bg-accent/50"
+                          className="block h-full rounded-xs bg-accent/50"
                           style={{ width: `${(p.count / maxCount) * 100}%` }}
                         />
                       </span>

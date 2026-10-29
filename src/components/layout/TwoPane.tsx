@@ -68,7 +68,7 @@ export function TwoPane({
         {middle !== undefined && (
           <div
             className={cn(
-              'min-h-0 min-w-0 flex-1 md:w-[300px] md:flex-none md:border-l md:border-border',
+              'min-h-0 min-w-0 flex-1 md:w-75 md:flex-none md:border-l md:border-border',
               side === 'middle' ? 'flex' : 'hidden md:flex',
             )}
           >

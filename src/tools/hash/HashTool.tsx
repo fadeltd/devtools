@@ -225,7 +225,7 @@ export default function HashTool() {
                     </div>
                     <code
                       className={cn(
-                        'select-all break-all font-mono text-[13px] leading-[18px]',
+                        'select-all break-all font-mono text-[13px] leading-4.5',
                         matched ? 'text-add' : 'text-fg',
                         pending && 'text-faint',
                       )}

@@ -153,7 +153,7 @@ export default function HmacTool() {
     >
       <div className="h-full overflow-y-auto scroll-thin md:flex md:overflow-hidden">
         {/* Inputs */}
-        <div className="flex flex-col gap-3 border-b border-border p-3 md:w-[340px] md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r md:scroll-thin">
+        <div className="flex flex-col gap-3 border-b border-border p-3 md:w-85 md:shrink-0 md:overflow-y-auto md:border-b-0 md:border-r md:scroll-thin">
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1">
               <span className="text-[12px] text-muted">Preset</span>
@@ -373,7 +373,7 @@ function OutputRow({ label, value }: { label: string; value: string }) {
           <CopyButton value={value} />
         </span>
       </div>
-      <code className="select-all break-all font-mono text-[13px] leading-[18px] text-fg">{value}</code>
+      <code className="select-all break-all font-mono text-[13px] leading-4.5 text-fg">{value}</code>
     </div>
   )
 }

@@ -225,7 +225,7 @@ function Decoded({ result }: { result: JwtResult }) {
             {formatCount(signature.bytes)} bytes · <span className="text-warn">not verified</span>
           </p>
           {signature.base64url !== '' && (
-            <p className="mx-3 mb-3 max-h-24 overflow-y-auto break-all rounded-[4px] border border-border bg-bg p-2 font-mono text-[12px] leading-[18px] text-muted scroll-thin">
+            <p className="mx-3 mb-3 max-h-24 overflow-y-auto break-all rounded-[4px] border border-border bg-bg p-2 font-mono text-[12px] leading-4.5 text-muted scroll-thin">
               {signature.base64url}
             </p>
           )}
@@ -271,7 +271,7 @@ function ClaimLine({ claim }: { claim: ClaimRow }) {
         <div className="font-mono text-[12px] text-fg">{claim.name}</div>
         <div className="text-[11px] text-faint">{claim.label}</div>
       </div>
-      <div className="min-w-0 break-all font-mono text-[12px] leading-[18px]">
+      <div className="min-w-0 break-all font-mono text-[12px] leading-4.5">
         {time === null ? (
           <span className="text-fg">{claim.display}</span>
         ) : (
@@ -294,8 +294,8 @@ function Issue({ issue, error = false }: { issue: JwtIssue; error?: boolean }) {
   const Icon = error ? CircleX : TriangleAlert
   return (
     <li className={error ? 'flex gap-1.5 text-del' : 'flex gap-1.5 text-warn'}>
-      <Icon size={13} className="mt-[2px] shrink-0" aria-hidden />
-      <span className="min-w-0 break-words">{issue.message}</span>
+      <Icon size={13} className="mt-0.5 shrink-0" aria-hidden />
+      <span className="min-w-0 wrap-break-word">{issue.message}</span>
     </li>
   )
 }
@@ -323,7 +323,7 @@ function TokenSummary({ result }: { result: JwtResult }) {
 
   return (
     <div className="shrink-0 border-t border-border">
-      <p className="max-h-24 overflow-y-auto break-all px-3 py-1.5 font-mono text-[12px] leading-[18px] scroll-thin">
+      <p className="max-h-24 overflow-y-auto break-all px-3 py-1.5 font-mono text-[12px] leading-4.5 scroll-thin">
         {pieces}
         {truncated && (
           <span className="text-faint"> … {formatCount(result.token.length - MAX_SUMMARY)} more</span>
@@ -350,7 +350,7 @@ function Segment({ part, marked, even }: { part: TokenPart; marked: number | und
   return (
     <span className={tone}>
       {visible.slice(0, at)}
-      <span className="rounded-[2px] bg-del-bg text-del">{ch}</span>
+      <span className="rounded-xs bg-del-bg text-del">{ch}</span>
       {visible.slice(at + ch.length)}
     </span>
   )

@@ -17,7 +17,7 @@ export function CodeArea({
       autoCorrect="off"
       autoComplete="off"
       className={cn(
-        'h-full w-full resize-none bg-bg p-3 font-mono md:text-[12px] md:leading-[18px]',
+        'h-full w-full resize-none bg-bg p-3 font-mono md:text-[12px] md:leading-4.5',
         'text-fg placeholder:text-faint scroll-thin',
         className,
       )}
