@@ -43,7 +43,7 @@ Inside the package, relative imports carry a `.ts` extension; `rewriteRelativeIm
 
 This is what makes ~30 tools maintainable, what lets any phase stop and still ship something correct, and what lets the engines be reused in other apps and a CLI.
 
-**Two changelogs, two versions.** The site (`CHANGELOG.md`, tags `v*`) and the package (`packages/core/CHANGELOG.md`, tags `core-v*`) release independently. A change to an engine's API or behaviour needs an entry in the package changelog; if it also changes what a site visitor sees, it needs one in the site changelog too. Before 1.0, a breaking package change is a minor bump — call it out under `### Breaking`. Tags (`v*`, `core-v*`) are created only by the Release workflow, on the release commit; never tell anyone to create, push or check out a release tag before Release has made it. The package is published only by CI, through npm trusted publishing (OIDC, no token).
+**Two changelogs, two versions.** The site (`CHANGELOG.md`, tags `v*`) and the package (`packages/core/CHANGELOG.md`, tags `core-v*`) release independently. A change to an engine's API or behaviour needs an entry in the package changelog; if it also changes what a site visitor sees, it needs one in the site changelog too. Before 1.0, a breaking package change is a minor bump — call it out under `### Breaking`. If a release lands on `main` while a branch is open, merge `main` and keep the branch's entries under `[Unreleased]`; CI (`scripts/check-changelog.ts`) fails a PR whose merge would put them in a released section. Tags (`v*`, `core-v*`) are created only by the Release workflow, on the release commit; never tell anyone to create, push or check out a release tag before Release has made it. The package is published only by CI, through npm trusted publishing (OIDC, no token).
 
 ## Design system
 
@@ -105,6 +105,11 @@ Each of these is a silent data-corruption bug, not a style preference:
 - **Never hard-wrap prose in a Markdown file.** Write each paragraph, list item and changelog bullet as one line, however long, and let the editor soft-wrap it. This applies to `CHANGELOG.md`, `README.md`, this file, `ROADMAP.md`, `TODO.md`, and any plan or spec you write. A fixed-width wrap means every later edit reflows the whole paragraph, which buries the real change in the diff. Code blocks and tables keep their own line structure.
 - **The same goes for commit message bodies and PR descriptions.** Keep the subject line short, then write each body paragraph or bullet as one line; GitHub and `git log` wrap it for display.
 - **Never write the skip marker (`[skip ci]`, `[ci skip]`, `[no ci]`) in a commit message unless you mean it** — not even to describe the release commit. GitHub skips *every* workflow for that push if it appears anywhere in the message, and squash merges here reuse the commit body, so it would also silently skip Release on `main`. Say "the release commit" instead.
+
+### Workflows
+
+- **Under `set -o pipefail`, never pipe into a reader that stops early** (`awk '{ …; exit }'`, `grep -q`, `head`). The writer dies of SIGPIPE, exit 141 fails the step, and it happens on most runs, not just occasionally. That is how v0.8.0 to v0.9.0 were committed but never tagged or deployed. Write to a file or use a here-string instead.
+- **Never write `${{ }}` in a `run:` script, not even in a comment.** GitHub expands expressions everywhere in the script before bash runs it. Run `actionlint` on workflow changes.
 
 ## Toolchain notes
 

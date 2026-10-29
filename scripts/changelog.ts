@@ -145,3 +145,53 @@ export function parseReleaseArgs(argv: readonly string[]): ReleaseTarget {
     dryRun: argv.includes('--dry-run'),
   }
 }
+
+/**
+ * The body of one released section, as `applyRelease` returned it for the
+ * GitHub release. Used to create a release after the fact, from the changelog
+ * as it stood at that release commit.
+ */
+export function releaseNotes(changelog: string, version: string): string | null {
+  const heading = new RegExp(`^## \\[${version.replaceAll('.', '\\.')}\\][^\\n]*\\n`, 'm')
+  const m = heading.exec(changelog)
+  if (m === null) return null
+  const rest = changelog.slice(m.index + m[0].length)
+  const next = rest.search(/^## \[/m)
+  return (next === -1 ? rest : rest.slice(0, next)).trim()
+}
+
+/** Every non-blank line from the first released section to the end. */
+function releasedLines(changelog: string): Set<string> {
+  const start = changelog.search(ANY_RELEASE_HEADING)
+  if (start === -1) return new Set()
+  return new Set(
+    changelog
+      .slice(start)
+      .split('\n')
+      .map((l) => l.trimEnd())
+      .filter((l) => l !== ''),
+  )
+}
+
+/**
+ * Entries a PR wrote under [Unreleased] that its merge would put inside an
+ * already released section.
+ *
+ * This happens when a branch is cut before a release commit lands: git's
+ * three-way merge keeps the new line next to its old neighbours, and those have
+ * since moved under the new version heading. The merge then releases nothing,
+ * and the old version's notes claim a change it does not contain.
+ *
+ * Edits to past release notes are not flagged: only lines that are also in the
+ * PR's own [Unreleased] count.
+ */
+export function misplacedEntries(base: string, merged: string, head: string): string[] {
+  const before = releasedLines(base)
+  const ours = new Set(
+    parseUnreleased(head)
+      .body.split('\n')
+      .map((l) => l.trimEnd())
+      .filter((l) => /^[-*] /.test(l)),
+  )
+  return [...releasedLines(merged)].filter((l) => !before.has(l) && ours.has(l))
+}

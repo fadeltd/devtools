@@ -19,6 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          # A PR builds GitHub's merge commit; its parents are the base and the
+          # PR head, which the changelog check compares.
+          fetch-depth: 2
 
       - uses: pnpm/action-setup@v6
 
@@ -29,6 +33,13 @@ jobs:
 
       # Fails loudly if the lockfile has drifted, which is the point of pnpm here.
       - run: pnpm install --frozen-lockfile
+
+      # A branch cut before a release commit landed merges its [Unreleased]
+      # lines into the section that release created, so the merge releases
+      # nothing (#19 did exactly this to 0.9.0).
+      - name: Check changelog entries stay under [Unreleased]
+        if: github.event_name == 'pull_request'
+        run: pnpm exec vite-node scripts/check-changelog.ts
 
       # Builds @fadeltd/devtools-core first: the app imports its compiled dist/.
       - name: Typecheck
@@ -52,7 +63,9 @@ jobs:
           pnpm pack --pack-destination "$RUNNER_TEMP" >/dev/null
           LIST=$(tar -tzf "$RUNNER_TEMP"/fadeltd-devtools-core-*.tgz)
           for sub in base64 diff hash html-text id-gen json jwt list number random slug text text-bytes text-stats timestamp unicode url; do
-            echo "$LIST" | grep -qx "package/dist/$sub/index.d.ts" || { echo "::error::Missing dist/$sub/index.d.ts"; exit 1; }
+            # A here-string, not `echo | grep -q`: grep -q stops reading at the
+            # first match, and under pipefail the writer's SIGPIPE fails the step.
+            grep -qx "package/dist/$sub/index.d.ts" <<< "$LIST" || { echo "::error::Missing dist/$sub/index.d.ts"; exit 1; }
           done
           if echo "$LIST" | grep -E '\.test\.|fixture'; then
             echo "::error::Tests or fixtures would be published."

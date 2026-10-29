@@ -65,7 +65,7 @@ jobs:
           --package packages/core/package.json
           --tag-prefix core-v
 
-      - name: Commit the changelogs and tag
+      - name: Commit the changelogs
         if: steps.cut.outputs.released == 'true' || steps.cut_core.outputs.released == 'true'
         env:
           SITE_TAG: ${{ steps.cut.outputs.tag }}
@@ -78,8 +78,8 @@ jobs:
           FILES="CHANGELOG.md package.json packages/core/CHANGELOG.md packages/core/package.json"
           TAGS=$(echo "${SITE_TAG} ${CORE_TAG}" | xargs)
 
-          # Each push is guarded, so a partially-completed earlier attempt can
-          # be resumed rather than blocking every retry.
+          # Guarded, so a partially-completed earlier attempt can be resumed
+          # rather than blocking every retry.
           if git diff --quiet -- $FILES; then
             echo "::notice::Changelogs and versions already committed."
           else
@@ -90,71 +90,111 @@ jobs:
             git push origin HEAD:main
           fi
 
-          for TAG in $TAGS; do
-            # Tag the release commit itself -- the one whose subject names this
-            # tag -- not whatever main points at, so a re-run after a later
-            # merge still tags the right commit.
-            RELEASE_COMMIT=$(git log -n 50 --format='%H %s' | awk -v t="$TAG" '$2 == "Release" { for (i = 3; i <= NF; i++) if ($i == t) { print $1; exit } }')
-            if [ -z "$RELEASE_COMMIT" ]; then
-              echo "::error::Could not find the release commit for ${TAG}."
-              exit 1
-            fi
-
-            # An existing tag is only "already done" if it points at the
-            # release commit. core-v0.1.0 was once pushed by hand onto the merge
-            # commit seconds before this step; trusting it silently attached
-            # the release to code that still said version 0.0.0.
-            REMOTE=$(git ls-remote --tags origin "refs/tags/${TAG}" "refs/tags/${TAG}^{}" | awk '{ print $1 }' | tail -n 1)
-            if [ -z "$REMOTE" ]; then
-              git tag -a "${TAG}" "${RELEASE_COMMIT}" -m "${TAG}"
-              git push origin "${TAG}"
-            elif [ "$REMOTE" = "$RELEASE_COMMIT" ]; then
-              echo "::notice::${TAG} already exists on the release commit."
-            else
-              echo "::error::${TAG} exists but points at ${REMOTE}, not the release commit ${RELEASE_COMMIT}. Tags are created only by this workflow: delete the stray tag (and its GitHub release, if any) and re-run."
-              exit 1
-            fi
-          done
-
-      # The notes go through env, never through ${{ }} in the script. Expression
-      # substitution pastes the text into the script BEFORE bash parses it, so
-      # every backtick in the changelog (`display: flex`) was run as a command
-      # and the step died -- after the tag was pushed, so Deploy never started.
-      - name: Create the site's GitHub release
-        if: steps.cut.outputs.released == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.cut.outputs.tag }}
-          NOTES: ${{ steps.cut.outputs.notes }}
-        run: |
-          gh release create "$TAG" --verify-tag --title "$TAG" --notes "$NOTES" \
-            || echo "::notice::Release already exists."
-
-      # Always dispatch, unconditionally.
+      # Runs on every merge, not only when this run cut something, and tags
+      # every release commit that is still missing its tags: this run's, and
+      # any an earlier run committed but failed to tag. Tags go on the release
+      # commit itself -- the one whose subject names them -- never on whatever
+      # main points at.
       #
-      # This previously only ran when no PAT was configured, on the assumption
-      # that a PAT-pushed tag would trigger Deploy natively via `on: push:
-      # tags`. With a PAT present that assumption silently took over and no
-      # deploy ever happened: the tag was pushed, Release reported success, and
-      # Deploy had zero runs. Dispatching every time removes the dependency on
-      # how GitHub attributes the push. Deploy is idempotent -- it builds and
-      # uploads the same tag -- so a duplicate run is harmless, whereas a
-      # missed one is invisible.
-      - name: Start Deploy
-        if: steps.cut.outputs.released == 'true'
+      # It walks back from main to the newest release commit whose tags and
+      # GitHub releases all exist, then works oldest first, so tags and GitHub releases are created
+      # in version order and history before that point is left alone.
+      #
+      # No pipeline here may stop reading early (`awk '{ ...; exit }'`,
+      # `grep -q`, `head`): under pipefail the writer then dies of SIGPIPE,
+      # exit 141 fails the step, and that is how v0.8.0 to v0.9.0 were left
+      # untagged and undeployed.
+      - id: tag
+        name: Tag and publish GitHub releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run deploy.yml --ref main -f tag="${{ steps.cut.outputs.tag }}"
-
-      - name: Create the devtools-core GitHub release
-        if: steps.cut_core.outputs.released == 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ steps.cut_core.outputs.tag }}
-          NOTES: ${{ steps.cut_core.outputs.notes }}
         run: |
-          gh release create "$TAG" --verify-tag --title "@fadeltd/devtools-core ${TAG#core-v}" --notes "$NOTES" \
-            || echo "::notice::Release already exists."
+          set -euo pipefail
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --quiet origin main
+          git ls-remote --tags origin > "$RUNNER_TEMP/remote-tags"
+
+          remote_sha() {
+            local tag=$1 sha="" ref_sha ref
+            # The peeled ^{} line, when present, is the commit an annotated
+            # tag points at; it is listed after the tag object itself.
+            while read -r ref_sha ref; do
+              if [ "$ref" = "refs/tags/${tag}" ] || [ "$ref" = "refs/tags/${tag}^{}" ]; then sha=$ref_sha; fi
+            done < "$RUNNER_TEMP/remote-tags"
+            echo "$sha"
+          }
+
+          # Release tags named in a commit subject, minus "[skip ci]".
+          tags_of() {
+            local word
+            for word in $1; do
+              case "$word" in v[0-9]*|core-v[0-9]*) echo "$word" ;; esac
+            done
+          }
+
+          # A file, not a pipe or process substitution: the loop stops early.
+          git log -n 100 --format='%H %s' origin/main > "$RUNNER_TEMP/log"
+          PENDING=()
+          while read -r SHA WORD REST; do
+            [ "$WORD" = "Release" ] || continue
+            DONE=true
+            for TAG in $(tags_of "$REST"); do
+              [ -n "$(remote_sha "$TAG")" ] || DONE=false
+              gh release view "$TAG" > /dev/null 2>&1 || DONE=false
+            done
+            [ "$DONE" = false ] || break
+            PENDING=("$SHA" "${PENDING[@]}")
+          done < "$RUNNER_TEMP/log"
+
+          DEPLOY_TAG=""
+          for SHA in "${PENDING[@]}"; do
+            SUBJECT=$(git log -n 1 --format=%s "$SHA")
+            for TAG in $(tags_of "${SUBJECT#Release }"); do
+              REMOTE=$(remote_sha "$TAG")
+              if [ -z "$REMOTE" ]; then
+                git tag -a "$TAG" "$SHA" -m "$TAG"
+                git push origin "refs/tags/${TAG}"
+                echo "Tagged ${TAG} on ${SHA}" >> "$GITHUB_STEP_SUMMARY"
+              elif [ "$REMOTE" != "$SHA" ]; then
+                # core-v0.1.0 was once pushed by hand onto the merge commit;
+                # trusting it attached the release to code still at 0.0.0.
+                echo "::error::${TAG} exists but points at ${REMOTE}, not the release commit ${SHA}. Tags are created only by this workflow: delete the stray tag (and its GitHub release, if any) and re-run."
+                exit 1
+              fi
+
+              case "$TAG" in
+                core-v*) FILE=packages/core/CHANGELOG.md; TITLE="@fadeltd/devtools-core ${TAG#core-v}" ;;
+                *)       FILE=CHANGELOG.md;               TITLE="$TAG" ;;
+              esac
+              if ! gh release view "$TAG" > /dev/null 2>&1; then
+                # Notes come from the changelog as it was at that release
+                # commit, and go through a file, never an Actions expression:
+                # expressions are pasted into the script before bash parses
+                # it, so a backtick in the notes would run as a command.
+                git show "${SHA}:${FILE}" > "$RUNNER_TEMP/changelog.md"
+                pnpm exec vite-node scripts/release-notes.ts "$RUNNER_TEMP/changelog.md" "${TAG#*v}" > "$RUNNER_TEMP/notes.md"
+                gh release create "$TAG" --verify-tag --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md"
+              fi
+              case "$TAG" in v*) DEPLOY_TAG=$TAG ;; esac
+            done
+          done
+          echo "deploy_tag=${DEPLOY_TAG}" >> "$GITHUB_OUTPUT"
+
+      # Always dispatch when a site tag was made or completed, for the newest
+      # one only: it contains every earlier release.
+      #
+      # Never left to `on: push: tags`. With a PAT present that path silently
+      # took over once and no deploy ever happened: the tag was pushed, Release
+      # reported success, and Deploy had zero runs. Dispatching removes the
+      # dependency on how GitHub attributes the push. Deploy is idempotent, so a
+      # duplicate run is harmless, whereas a missed one is invisible.
+      - name: Start Deploy
+        if: steps.tag.outputs.deploy_tag != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.deploy_tag }}
+        run: gh workflow run deploy.yml --ref main -f tag="$TAG"
 
       # Trusted publishing (OIDC): npm verifies that this workflow, in this
       # repo, is the one allowed to publish. No npm token is stored anywhere,
@@ -193,6 +233,9 @@ jobs:
 
       - name: Summary
         run: |
+          if [ -n "${{ steps.tag.outputs.deploy_tag }}" ]; then
+            echo "Deploying ${{ steps.tag.outputs.deploy_tag }}" >> "$GITHUB_STEP_SUMMARY"
+          fi
           if [ "${{ steps.cut.outputs.released }}" = "true" ]; then
             echo "Released ${{ steps.cut.outputs.tag }}" >> "$GITHUB_STEP_SUMMARY"
           fi
