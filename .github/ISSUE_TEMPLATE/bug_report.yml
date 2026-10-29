@@ -28,6 +28,17 @@ body:
         - Text to Binary / Hex
         - Number Converter
         - Unicode Inspector
+        - YAML / JSON / TOML
+        - SQL Formatter
+        - CSS Formatter
+        - CSV to Table
+        - .env Converter
+        - Cron Explainer
+        - String Escaper
+        - Color Converter
+        - Contrast Checker
+        - QR Code
+        - Lorem Ipsum
         - The site itself (⌘K palette, sidebar, shortcuts, saved state)
     validations:
       required: true

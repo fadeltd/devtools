@@ -1,6 +1,6 @@
 # devtools.fadeltd.dev
 
-**Free, open-source developer tools that run entirely in your browser.** A JSON formatter, diff checker, base64 encoder/decoder, JWT decoder, timestamp converter, URL encoder, hash and HMAC calculator, UUID, ID and password generator, Unicode inspector, word counter, HTML-to-text extractor and list sorter — with no backend, no accounts, no ads and no tracking.
+**Free, open-source developer tools that run entirely in your browser.** A JSON formatter, diff checker, YAML/TOML converter, SQL and CSS formatter, CSV viewer, base64 encoder/decoder, JWT decoder, timestamp and cron tools, URL encoder, string escaper, hash and HMAC calculator, UUID, ID and password generator, color and contrast checker, QR code generator, Unicode inspector, word counter, HTML-to-text extractor and list sorter — with no backend, no accounts, no ads and no tracking.
 
 [![Live](https://img.shields.io/badge/live-devtools.fadeltd.dev-38bdf8)](https://devtools.fadeltd.dev)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -41,6 +41,17 @@ Three other things it does that the free sites generally do not:
 | **[Text to Binary / Hex](https://devtools.fadeltd.dev/text-bytes)** | UTF-8 text ↔ binary, hex, decimal or octal; `0x` / `\x` prefixes and C-string output; tolerant paste parsing with exact error positions; format auto-detect; invalid UTF-8 located, with a labelled fallback |
 | **[Number Converter](https://devtools.fadeltd.dev/number)** | Bases 2–36 with no precision loss, two's complement, byte sizes in SI vs IEC, chmod octal ↔ symbolic with checkboxes |
 | **[Unicode Inspector](https://devtools.fadeltd.dev/unicode)** | Every code point with line:column, UTF-8/UTF-16 and category; flags zero-width, bidi (Trojan Source), exotic spaces, tags, lone surrogates; flagged-only view; one-click clean with optional NFC/NFKC |
+| **[YAML / JSON / TOML](https://devtools.fadeltd.dev/yaml-toml)** | Convert between YAML, JSON and TOML in any direction with auto-detection; positioned errors with a caret; YAML 1.1 trap notes (`no`, `on`, `0755`); comments kept YAML → YAML; anchors, merge keys and multi-document YAML; exact big integers |
+| **[SQL Formatter](https://devtools.fadeltd.dev/sql)** | Twelve dialects, keyword case, indent and statement spacing; comments kept; parse errors with line and column; minify that leaves strings, quoted identifiers and comments untouched |
+| **[CSS Formatter](https://devtools.fadeltd.dev/css)** | Prettier for CSS, SCSS and Less with width, indent and quote options; syntax errors with line and column; a careful CSS minifier that keeps `calc()` spacing, licence comments and data URIs intact |
+| **[CSV to Table](https://devtools.fadeltd.dev/csv)** | RFC 4180 parsing with quoted newlines, delimiter detection (comma, tab, semicolon, pipe; European decimal commas handled), virtualised table with sticky header and column type hints, ragged-row and unclosed-quote warnings by line, convert to JSON, Markdown, CSV or TSV |
+| **[.env Converter](https://devtools.fadeltd.dev/env)** | .env ↔ JSON ↔ shell `export` ↔ docker `--env-file`; dotenv-accurate parsing (quotes, escapes, multiline, inline comments, CRLF); per-value safe quoting; problems reported by line; flatten nested JSON with `__`; mask values for screen sharing; never saved |
+| **[Cron Explainer](https://devtools.fadeltd.dev/cron)** | Cron in plain English with a per-field breakdown; next 10 runs in any time zone with DST handled the way Vixie cron does; 6-field seconds, macros, day-of-month/day-of-week OR, Quartz syntax called out by name |
+| **[String Escaper](https://devtools.fadeltd.dev/escape)** | Escape and unescape for JSON, JavaScript (`"` `'` or template), SQL (standard `''` or MySQL backslashes), POSIX shell (`'\''` quoting), regex and HTML entities; positioned unescape errors with the fix |
+| **[Color Converter](https://devtools.fadeltd.dev/color)** | Hex, RGB, HSL and OKLCH from any CSS color or a picker; all 148 named colors; out-of-sRGB-gamut warning with a chroma-reduced fallback; alpha; positioned errors |
+| **[Contrast Checker](https://devtools.fadeltd.dev/contrast)** | WCAG 2 ratio with AA/AAA for normal and large text and 3:1 for UI; live preview; alpha blended over the background; nearest passing text color by OKLCH lightness, with Apply |
+| **[QR Code](https://devtools.fadeltd.dev/qr)** | QR codes for text, URLs and Wi-Fi with a chosen error correction level, downloadable as a single-path SVG or a crisp PNG; scan-risk warnings; the Wi-Fi password is never saved |
+| **[Lorem Ipsum](https://devtools.fadeltd.dev/lorem)** | Exact counts of words, sentences or paragraphs, optional classic opening, plain text / HTML `<p>` / Markdown output, one-key Regenerate |
 
 Press `⌘K` anywhere to jump to a tool, `⌘1`–`⌘9` for pinned ones, and `?` for the shortcut list. Your last input is restored when you come back.
 
