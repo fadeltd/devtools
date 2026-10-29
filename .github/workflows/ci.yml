@@ -51,7 +51,7 @@ jobs:
           set -euo pipefail
           pnpm pack --pack-destination "$RUNNER_TEMP" >/dev/null
           LIST=$(tar -tzf "$RUNNER_TEMP"/fadeltd-devtools-core-*.tgz)
-          for sub in base64 diff html-text id-gen json list random text text-stats; do
+          for sub in base64 diff hash html-text id-gen json jwt list number random slug text text-bytes text-stats timestamp unicode url; do
             echo "$LIST" | grep -qx "package/dist/$sub/index.d.ts" || { echo "::error::Missing dist/$sub/index.d.ts"; exit 1; }
           done
           if echo "$LIST" | grep -E '\.test\.|fixture'; then
