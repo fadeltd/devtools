@@ -1,8 +1,9 @@
 # devtools.fadeltd.dev
 
 **Free, open-source developer tools that run entirely in your browser.** A JSON
-formatter, diff checker, base64 encoder/decoder, word counter and list sorter —
-with no backend, no accounts, no ads and no tracking.
+formatter, diff checker, base64 encoder/decoder, ID and password generator, word
+counter, HTML-to-text extractor and list sorter — with no backend, no accounts,
+no ads and no tracking.
 
 [![Live](https://img.shields.io/badge/live-devtools.fadeltd.dev-38bdf8)](https://devtools.fadeltd.dev)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -35,11 +36,13 @@ Three other things it does that the free sites generally do not:
 
 | | |
 |---|---|
-| **[Diff Checker](https://devtools.fadeltd.dev/diff)** | Side-by-side or unified, word-level highlighting, collapsed unchanged regions, `Alt+↑/↓` to jump between changes |
+| **[Diff Checker](https://devtools.fadeltd.dev/diff)** | Side-by-side or unified, word-level highlighting, ignore whitespace / case / trim, copy as a unified patch, share by link (the content lives in the URL fragment, never on a server), `Alt+↑/↓` to jump between changes |
 | **[Base64](https://devtools.fadeltd.dev/base64)** | Encode/decode with correct UTF-8, base64url, padding control. Unwraps PEM/MIME line breaks and `data:` URIs, and tells you what it changed |
 | **[List Tools](https://devtools.fadeltd.dev/list)** | Sort (natural or alphabetical), remove duplicates, randomize, reverse — without the phantom blank line every other list tool adds |
-| **[JSON Formatter](https://devtools.fadeltd.dev/json)** | Format, minify, sort keys. Reports *every* problem with an exact line, column and caret, detects NDJSON, warns when numbers lose precision, and **expands JSON that was serialised into a string** — the thing structured logs do, including double-encoded |
+| **[JSON Formatter](https://devtools.fadeltd.dev/json)** | Format, minify, sort keys. Reports *every* problem with an exact line, column and caret, detects NDJSON, keeps big numbers byte-exact, and **expands JSON that was serialised into a string** — the thing structured logs do, including double-encoded. Tree view with copy-path (pointer / dot / jq), and one-click fixes for trailing commas, comments and single quotes, previewed as a diff |
+| **[ID Generator](https://devtools.fadeltd.dev/id-gen)** | Prefixed Stripe-style ids, custom alphabet and length, bulk generation, entropy readout. Doubles as a password generator; nothing generated is ever saved |
 | **[Text Statistics](https://devtools.fadeltd.dev/text-stats)** | Characters, letters, words, sentences, paragraphs, reading time, and word/phrase frequency |
+| **[HTML to Text](https://devtools.fadeltd.dev/html-text)** | Readable plain text from HTML, keeping paragraphs, lists and tables; scripts, hidden elements and icon ligatures dropped |
 
 Press `⌘K` anywhere to jump to a tool, `⌘1`–`⌘9` for pinned ones, and `?` for the
 shortcut list. Your last input is restored when you come back.
