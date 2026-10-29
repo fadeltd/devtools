@@ -7,6 +7,7 @@ with no backend, no accounts, no ads and no tracking.
 [![Live](https://img.shields.io/badge/live-devtools.fadeltd.dev-38bdf8)](https://devtools.fadeltd.dev)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![No backend](https://img.shields.io/badge/backend-none-22c55e)](#why-another-one-of-these)
+[![XERJ Corpus Hub](https://hub.xerj.org/contributors/fadeltd/badge.svg)](https://hub.xerj.org/contributors/fadeltd)
 
 ### → [**devtools.fadeltd.dev**](https://devtools.fadeltd.dev)
 
