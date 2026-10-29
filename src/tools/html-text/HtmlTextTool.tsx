@@ -10,7 +10,7 @@ import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatBytes } from '@/lib/util/bytes'
-import { htmlToText } from './core/extract'
+import { htmlToText } from '@fadeltd/devtools-core/html-text'
 
 interface State {
   html: string

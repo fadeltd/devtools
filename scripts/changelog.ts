@@ -117,3 +117,31 @@ export function applyRelease(
     notes: unreleased.body,
   }
 }
+
+export interface ReleaseTarget {
+  changelogPath: string
+  packagePath: string
+  /** Prepended to the version: `v` for the site, `core-v` for @fadeltd/devtools-core. */
+  tagPrefix: string
+  dryRun: boolean
+}
+
+/**
+ * Which changelog to release. The defaults are the site's, so a bare
+ * `release.ts` behaves exactly as it did before the package existed.
+ */
+export function parseReleaseArgs(argv: readonly string[]): ReleaseTarget {
+  const value = (flag: string, fallback: string): string => {
+    const i = argv.indexOf(flag)
+    if (i === -1) return fallback
+    const v = argv[i + 1]
+    if (v === undefined || v.startsWith('--')) throw new Error(`${flag} needs a value`)
+    return v
+  }
+  return {
+    changelogPath: value('--changelog', 'CHANGELOG.md'),
+    packagePath: value('--package', 'package.json'),
+    tagPrefix: value('--tag-prefix', 'v'),
+    dryRun: argv.includes('--dry-run'),
+  }
+}

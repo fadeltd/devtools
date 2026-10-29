@@ -41,19 +41,21 @@ Requires Node ≥ 22.12 and pnpm. **pnpm only** — never npm or yarn.
 
 ```bash
 pnpm install
-pnpm dev                    # Vite dev server
+pnpm dev                    # builds the engines, then Vite dev server
 pnpm test                   # Vitest: unit + property tests
 pnpm lint                   # oxlint
-pnpm exec tsc --noEmit      # typecheck
+pnpm typecheck              # builds the engines, then typechecks
 pnpm exec wrangler dev      # serve dist/ exactly as Cloudflare will
 pnpm deploy                 # build + deploy
 ```
 
 ### Adding a tool
 
-One folder under `src/tools/` plus one entry in `src/lib/registry/index.ts`. That registry drives the router, home grid, sidebar, command palette, build-time prerender and sitemap — so nothing else needs editing.
+Each tool is an engine in `packages/core/src/<slug>/` (pure functions: no React, no DOM, no store — this is where all the tests live), a thin `.tsx` shell in `src/tools/<slug>/`, and one entry in `src/lib/registry/index.ts`. That registry drives the router, home grid, sidebar, command palette, build-time prerender and sitemap — so nothing else needs editing.
 
-Each tool is split into `core/` (pure functions: no React, no DOM, no store — this is where all the tests live) and a thin `.tsx` shell.
+### Use the engines
+
+The engines are published separately as [`@fadeltd/devtools-core`](packages/core/README.md), so you can use the same list pipelines, JSON error reporting, diff, base64 and text statistics in your own app or CLI. The site imports that package's compiled output like any other consumer.
 
 `CHANGELOG.md` records what shipped when. `CLAUDE.md` has the rules that matter, including several that look like trivia but are silent data-corruption bugs if ignored. `CONTRIBUTING.md` has the two constraints that shape every decision here.
 

@@ -6,7 +6,8 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   test: {
-    // core/ is pure: no DOM needed, and node is much faster to boot.
+    // App-side tests are logic only (the engines' tests run in packages/core):
+    // no DOM needed, and node is much faster to boot.
     environment: 'node',
     include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'],
     // Transforms dominate the run time otherwise.

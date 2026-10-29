@@ -27,5 +27,64 @@
     "dist",
     "node_modules",
     ".wrangler"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "packages/core/src/**"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "react",
+                "message": "devtools-core is pure: no React. The .tsx shell lives in src/tools/<slug>/."
+              },
+              {
+                "name": "react-dom",
+                "message": "devtools-core is pure: no React DOM."
+              },
+              {
+                "name": "comlink",
+                "message": "Workers belong to the app (src/tools/<slug>/*.worker.ts), not the engines."
+              }
+            ],
+            "patterns": [
+              {
+                "group": [
+                  "@/**"
+                ],
+                "message": "devtools-core cannot reach into the app. Move the helper into packages/core/src/."
+              }
+            ]
+          }
+        ],
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "document",
+            "message": "devtools-core has no DOM: take strings and bytes, return data."
+          },
+          {
+            "name": "window",
+            "message": "devtools-core has no DOM: it must run in Node and in workers."
+          },
+          {
+            "name": "localStorage",
+            "message": "Persistence belongs to the app (lib/persist), not the engines."
+          },
+          {
+            "name": "sessionStorage",
+            "message": "Persistence belongs to the app (lib/persist), not the engines."
+          },
+          {
+            "name": "indexedDB",
+            "message": "Persistence belongs to the app (lib/persist), not the engines."
+          }
+        ]
+      }
+    }
   ]
 }

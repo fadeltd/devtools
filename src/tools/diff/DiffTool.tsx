@@ -11,11 +11,18 @@ import { readTextFile } from '@/lib/util/filedrop'
 import { formatBytes, formatCount } from '@/lib/util/bytes'
 import { copyText } from '@/lib/util/clipboard'
 import { MergePane, type DiffApi } from './MergePane'
-import { ignoreLabel, type IgnoreOptions } from './core/ignore'
-import { toUnifiedPatch } from './core/patch'
+import {
+  ignoreLabel,
+  type IgnoreOptions,
+  toUnifiedPatch,
+  assessSize,
+  diffStats,
+  MAX_SHARE_CHARS,
+  SHARE_PARAM,
+  decodeShare,
+  encodeShare,
+} from '@fadeltd/devtools-core/diff'
 import { diffFor } from './engine'
-import { assessSize, diffStats } from './core/stats'
-import { MAX_SHARE_CHARS, SHARE_PARAM, decodeShare, encodeShare } from './core/share'
 
 interface State {
   left: string

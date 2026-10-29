@@ -15,17 +15,18 @@ import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatBytes, formatCount } from '@/lib/util/bytes'
 import { cn } from '@/lib/util/cn'
-import { analyze, stripJsonc, type JsonIssue } from './core/errors'
 import {
+  analyze,
+  stripJsonc,
+  type JsonIssue,
   embeddedFields,
   expandEmbedded,
   findEmbeddedJson,
   type EmbeddedField,
   type EmbeddedOptions,
-} from './core/embedded'
-import { runFixes } from './core/fixes'
-import { losslessSupported, parseLossless } from './core/rawjson'
-import {
+  runFixes,
+  losslessSupported,
+  parseLossless,
   escapeAsJsonString,
   findNumberIssues,
   formatValue,
@@ -34,7 +35,7 @@ import {
   unescapeJsonString,
   withSortedKeys,
   type Indent,
-} from './core/format'
+} from '@fadeltd/devtools-core/json'
 import { TreeView } from './TreeView'
 
 type Mode = 'format' | 'minify' | 'escape' | 'unescape'

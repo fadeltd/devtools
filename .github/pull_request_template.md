@@ -12,8 +12,9 @@
 
 ## Checklist
 
-- [ ] `pnpm exec tsc --noEmit && pnpm lint && pnpm test && pnpm build` all pass
-- [ ] New logic lives in `src/tools/<slug>/core/` with tests beside it; the `.tsx` stays a thin shell
+- [ ] `pnpm typecheck && pnpm lint && pnpm test && pnpm build` all pass
+- [ ] New logic lives in `packages/core/src/<slug>/` with tests beside it; the `.tsx` stays a thin shell
+- [ ] Engine API or behaviour changed → an entry under `## [Unreleased]` in `packages/core/CHANGELOG.md`
 - [ ] User-facing change → an entry under `## [Unreleased]` in `CHANGELOG.md` (without one, the merge releases nothing)
 - [ ] No network request, third-party resource, `innerHTML`, or dependency that needs `eval`
 - [ ] Anything touching a secret declares `store: { kind: 'none' }`; nothing multi-MB goes to `localStorage`

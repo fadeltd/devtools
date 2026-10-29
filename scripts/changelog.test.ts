@@ -3,6 +3,7 @@ import {
   applyRelease,
   determineBump,
   nextVersion,
+  parseReleaseArgs,
   parseUnreleased,
   parseVersion,
 } from './changelog'
@@ -134,5 +135,50 @@ describe('applyRelease', () => {
   it('does not leave runs of blank lines', () => {
     const r = applyRelease(doc('### Added\n- x'), '0.1.0', today)!
     expect(r.changelog).not.toMatch(/\n{4,}/)
+  })
+})
+
+describe('parseReleaseArgs', () => {
+  it("defaults to the site's changelog and v tags", () => {
+    expect(parseReleaseArgs([])).toEqual({
+      changelogPath: 'CHANGELOG.md',
+      packagePath: 'package.json',
+      tagPrefix: 'v',
+      dryRun: false,
+    })
+  })
+
+  it('targets the core package', () => {
+    expect(
+      parseReleaseArgs([
+        '--changelog',
+        'packages/core/CHANGELOG.md',
+        '--package',
+        'packages/core/package.json',
+        '--tag-prefix',
+        'core-v',
+        '--dry-run',
+      ]),
+    ).toEqual({
+      changelogPath: 'packages/core/CHANGELOG.md',
+      packagePath: 'packages/core/package.json',
+      tagPrefix: 'core-v',
+      dryRun: true,
+    })
+  })
+
+  it('rejects a flag with no value rather than releasing the wrong file', () => {
+    expect(() => parseReleaseArgs(['--changelog', '--dry-run'])).toThrow('--changelog needs a value')
+    expect(() => parseReleaseArgs(['--tag-prefix'])).toThrow('--tag-prefix needs a value')
+  })
+})
+
+describe('first release of a new package', () => {
+  it('cuts 0.1.0 from 0.0.0 when there is no earlier version heading', () => {
+    const first = '# Changelog\n\n## [Unreleased]\n\n### Added\n- First release.\n'
+    const r = applyRelease(first, '0.0.0', '2026-10-29')
+    expect(r?.version).toBe('0.1.0')
+    expect(r?.changelog).toContain('## [0.1.0] — 2026-10-29\n\n### Added\n- First release.')
+    expect(r?.changelog).toContain('## [Unreleased]\n\nNothing yet.')
   })
 })

@@ -1,7 +1,10 @@
 import { expose } from 'comlink'
-import { bytesToBase64, type EncodeOptions } from './core/codec'
-import type { Dimensions } from './core/snippets'
-import { svgDimensions } from './core/svg'
+import {
+  bytesToBase64,
+  type EncodeOptions,
+  type Dimensions,
+  svgDimensions,
+} from '@fadeltd/devtools-core/base64'
 
 export interface Inspected {
   /** Null when only the dimensions were asked for. */

@@ -8,11 +8,12 @@ This file holds the rules. The maintainer also keeps `ROADMAP.md` and `TODO.md` 
 
 | Command | What |
 |---|---|
-| `pnpm dev` | Vite dev server |
-| `pnpm build` | Production build into `dist/` |
-| `pnpm test` | Vitest (unit + property tests) |
-| `pnpm lint` | oxlint |
-| `pnpm exec tsc --noEmit` | Typecheck |
+| `pnpm dev` | Builds `@fadeltd/devtools-core`, then runs its `tsc --watch` alongside the Vite dev server |
+| `pnpm build` | Builds the package, then the site into `dist/` |
+| `pnpm test` | Vitest for the app, then for the package (unit + property tests) |
+| `pnpm lint` | oxlint, across the app and the package |
+| `pnpm typecheck` | Builds the package, then typechecks the app and the package |
+| `pnpm core:build` | Builds `packages/core/dist/` only |
 | `pnpm exec wrangler dev` | Serve `dist/` exactly as Cloudflare will |
 | `pnpm deploy` | Build + `wrangler deploy` |
 
@@ -24,17 +25,25 @@ This file holds the rules. The maintainer also keeps `ROADMAP.md` and `TODO.md` 
 
 `src/lib/registry/index.ts` drives the router, the home grid, the sidebar, the command palette, the build-time prerender, and the sitemap.
 
-**Adding a tool = one new folder under `src/tools/` + one entry in the registry. Nothing else.** If a change requires hand-editing the router, the sidebar, or the SEO scripts, the abstraction has been broken — fix that instead of working around it.
+**Adding a tool = its engine in `packages/core/src/<slug>/` (with an `index.ts` and an `exports` entry in `packages/core/package.json`) + one folder under `src/tools/` + one entry in the registry. Nothing else.** If a change requires hand-editing the router, the sidebar, or the SEO scripts, the abstraction has been broken — fix that instead of working around it.
 
 The one deliberate exception is the GitHub issue forms. They are static YAML that GitHub reads directly, so nothing in the build can generate them. **When you add a tool or a registry category, add it to the "Which tool?" dropdown in `.github/ISSUE_TEMPLATE/bug_report.yml`**, using the registry `title`. If the new tool changes what this project will or won't build, update the list of standing no's in `tool_request.yml` as well.
 
 Note the shape in `registry/index.ts`: `RAW_TOOLS` uses `as const satisfies` to produce the literal `ToolSlug` union, then `TOOLS` is re-exported widened to `ToolDef`. Both halves are load-bearing — the literal union keeps persistence keys and links honest, and the widening keeps optional fields (`hidden`) and full `StoreKind` reachable.
 
-### The `core/` purity rule
+### The engines are a package: `@fadeltd/devtools-core`
 
-`src/tools/*/core/**` imports nothing from React, the DOM, or any store. It takes strings, bytes and options, and returns data. **All test effort goes here**; the `.tsx` is a thin shell and is not unit-tested. No component tests, no Playwright.
+Every tool's logic lives in `packages/core/src/<slug>/`, published to npm as `@fadeltd/devtools-core` with one subpath per tool (`@fadeltd/devtools-core/list`, `/json`, …). Shared helpers are `/text` (offsets, counts) and `/random`. The site imports the package's **compiled** `dist/` like any other consumer, which is why `dev`, `build` and `typecheck` build it first.
 
-This is what makes ~30 tools maintainable and what lets any phase stop and still ship something correct.
+The package imports nothing from React, the DOM, the app (`@/…`), comlink, or any store. It takes strings, bytes and options, and returns data, so it runs in Node, in a browser and in a worker. **oxlint enforces this** (`overrides` in `.oxlintrc.json`); do not loosen the rule to make a change compile — move the browser-only part into the app instead. Workers (`src/tools/<slug>/*.worker.ts`) stay in the app.
+
+Inside the package, relative imports carry a `.ts` extension; `rewriteRelativeImportExtensions` turns them into `.js` in `dist/`.
+
+**All test effort goes here**; the `.tsx` is a thin shell and is not unit-tested. No component tests, no Playwright. The one app-side test, `src/tools/diff/stats.parity.test.ts`, checks the engine against CodeMirror, which the package must not depend on.
+
+This is what makes ~30 tools maintainable, what lets any phase stop and still ship something correct, and what lets the engines be reused in other apps and a CLI.
+
+**Two changelogs, two versions.** The site (`CHANGELOG.md`, tags `v*`) and the package (`packages/core/CHANGELOG.md`, tags `core-v*`) release independently. A change to an engine's API or behaviour needs an entry in the package changelog; if it also changes what a site visitor sees, it needs one in the site changelog too. Before 1.0, a breaking package change is a minor bump — call it out under `### Breaking`.
 
 ## Design system
 
@@ -95,6 +104,7 @@ Each of these is a silent data-corruption bug, not a style preference:
 
 - **Never hard-wrap prose in a Markdown file.** Write each paragraph, list item and changelog bullet as one line, however long, and let the editor soft-wrap it. This applies to `CHANGELOG.md`, `README.md`, this file, `ROADMAP.md`, `TODO.md`, and any plan or spec you write. A fixed-width wrap means every later edit reflows the whole paragraph, which buries the real change in the diff. Code blocks and tables keep their own line structure.
 - **The same goes for commit message bodies and PR descriptions.** Keep the subject line short, then write each body paragraph or bullet as one line; GitHub and `git log` wrap it for display.
+- **Never write the skip marker (`[skip ci]`, `[ci skip]`, `[no ci]`) in a commit message unless you mean it** — not even to describe the release commit. GitHub skips *every* workflow for that push if it appears anywhere in the message, and squash merges here reuse the commit body, so it would also silently skip Release on `main`. Say "the release commit" instead.
 
 ## Toolchain notes
 

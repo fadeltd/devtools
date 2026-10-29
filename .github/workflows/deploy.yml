@@ -45,7 +45,7 @@ jobs:
       # Cloudflare would happily serve a broken build, so nothing ships that
       # has not passed the same gate CI applies to pull requests.
       - name: Typecheck
-        run: pnpm exec tsc --noEmit
+        run: pnpm typecheck
 
       - name: Lint
         run: pnpm lint

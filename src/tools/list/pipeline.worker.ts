@@ -1,8 +1,13 @@
 import { expose } from 'comlink'
-import { parseLines, serializeLines } from './core/lines'
-import { appliesNormalizationCheck } from './core/ops'
-import { findNormalizationCollisions, runPipeline } from './core/pipeline'
-import type { Op, StepStat } from './core/types'
+import {
+  parseLines,
+  serializeLines,
+  appliesNormalizationCheck,
+  findNormalizationCollisions,
+  runPipeline,
+  type Op,
+  type StepStat,
+} from '@fadeltd/devtools-core/list'
 
 export interface PipelineOutput {
   output: string
