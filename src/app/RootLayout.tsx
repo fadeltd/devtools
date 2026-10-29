@@ -15,6 +15,7 @@ import { Kbd } from '@/components/ui/Kbd'
 import { useShortcuts } from '@/lib/keys/useShortcuts'
 import type { Shortcut } from '@/lib/keys/types'
 import { usePrefs } from '@/lib/prefs'
+import { TOOLS_BY_SLUG } from '@/lib/registry'
 
 export default function RootLayout() {
   const navigate = useNavigate()
@@ -60,7 +61,7 @@ export default function RootLayout() {
     prefs.pins.forEach((slug, i) => {
       list.push({
         combo: `mod+${i + 1}`,
-        label: `Go to ${slug}`,
+        label: `Go to ${TOOLS_BY_SLUG[slug].title}`,
         group: 'Pinned tools',
         scope: 'global',
         whileTyping: true,

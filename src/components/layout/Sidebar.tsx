@@ -1,7 +1,8 @@
 import { NavLink } from 'react-router'
 import { PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 import { CATEGORIES, CATEGORY_LABELS, VISIBLE_TOOLS, warmTool } from '@/lib/registry'
-import { toggleSidebar, usePrefs } from '@/lib/prefs'
+import { pinnedTools, toggleSidebar, usePrefs } from '@/lib/prefs'
+import { renderCombo } from '@/lib/keys/platform'
 import { cn } from '@/lib/util/cn'
 
 function ToolLinks({
@@ -11,26 +12,38 @@ function ToolLinks({
   collapsed?: boolean
   onNavigate?: () => void
 }) {
+  const prefs = usePrefs()
+  // Pinned tools lead, in ⌘1–9 order, and also stay in their category so the
+  // category lists keep their shape whether or not anything is pinned.
+  const groups = [
+    { key: 'pinned', label: 'Pinned', tools: pinnedTools(prefs), pinned: true },
+    ...CATEGORIES.map((category) => ({
+      key: category,
+      label: CATEGORY_LABELS[category],
+      tools: VISIBLE_TOOLS.filter((t) => t.category === category),
+      pinned: false,
+    })),
+  ]
+
   return (
     <nav className={cn('flex flex-col gap-4 p-3', collapsed && 'items-center gap-3 px-1.5')}>
-      {CATEGORIES.map((category) => {
-        const tools = VISIBLE_TOOLS.filter((t) => t.category === category)
+      {groups.map(({ key, label, tools, pinned }) => {
         if (tools.length === 0) return null
         return (
-          <div key={category} className={cn(collapsed && 'flex w-full flex-col items-center gap-1')}>
+          <div key={key} className={cn(collapsed && 'flex w-full flex-col items-center gap-1')}>
             {collapsed ? (
               // A hairline keeps the grouping legible without a heading.
               <div className="mb-1 h-px w-5 bg-border first:hidden" aria-hidden />
             ) : (
               <div className="flex items-center justify-between px-2 pb-1">
                 <span className="text-[11px] font-semibold uppercase tracking-[0.02em] text-faint">
-                  {CATEGORY_LABELS[category]}
+                  {label}
                 </span>
                 <span className="font-mono text-[11px] text-faint">{tools.length}</span>
               </div>
             )}
 
-            {tools.map((tool) => (
+            {tools.map((tool, i) => (
               <NavLink
                 key={tool.slug}
                 to={`/${tool.slug}`}
@@ -57,6 +70,12 @@ function ToolLinks({
                 {!collapsed && (
                   <span className="truncate opacity-0 animate-[fadeIn_150ms_ease-out_forwards]">
                     {tool.title}
+                  </span>
+                )}
+                {/* The shortcut is the point of a pin on desktop; phones have no ⌘. */}
+                {!collapsed && pinned && (
+                  <span className="ml-auto hidden font-mono text-[11px] text-faint md:inline">
+                    {renderCombo(`mod+${i + 1}`)}
                   </span>
                 )}
               </NavLink>

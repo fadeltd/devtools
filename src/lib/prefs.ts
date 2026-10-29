@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { isToolSlug, type ToolSlug } from '@/lib/registry'
+import { isToolSlug, TOOLS_BY_SLUG, type Tool, type ToolSlug } from '@/lib/registry'
 import { readLocal, writeLocal } from '@/lib/persist/store'
 
 /**
@@ -64,12 +64,26 @@ export function toggleSidebar(): void {
   update((p) => ({ ...p, sidebarCollapsed: !p.sidebarCollapsed }))
 }
 
-export function togglePin(slug: ToolSlug): void {
+/** Returns false when the pin was refused because all slots are taken. */
+export function togglePin(slug: ToolSlug): boolean {
+  let refused = false
   update((p) => {
     if (p.pins.includes(slug)) return { ...p, pins: p.pins.filter((s) => s !== slug) }
-    if (p.pins.length >= MAX_PINS) return p
+    if (p.pins.length >= MAX_PINS) {
+      refused = true
+      return p
+    }
     return { ...p, pins: [...p.pins, slug] }
   })
+  return !refused
+}
+
+/**
+ * Pinned tools in pin order, which is also their ⌘1–9 order. Hidden tools
+ * stay pinnable by shortcut but are not listed, matching the grid and sidebar.
+ */
+export function pinnedTools(prefs: Prefs): Tool[] {
+  return prefs.pins.map((slug) => TOOLS_BY_SLUG[slug]).filter((t) => !t.hidden)
 }
 
 /** Most-used first, for the palette's Recent section. */
@@ -104,6 +118,6 @@ export function useToolUsageTracker(slug: ToolSlug): void {
   }, [slug])
 }
 
-export function useTogglePin(): (slug: ToolSlug) => void {
+export function useTogglePin(): (slug: ToolSlug) => boolean {
   return useCallback((slug: ToolSlug) => togglePin(slug), [])
 }
