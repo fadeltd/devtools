@@ -32,6 +32,9 @@ importers:
       codemirror:
         specifier: 6.0.2
         version: 6.0.2
+      comlink:
+        specifier: 4.4.2
+        version: 4.4.2
       diff:
         specifier: 9.0.0
         version: 9.0.0
@@ -1231,6 +1234,9 @@ packages:
 
   codemirror@6.0.2:
     resolution: {integrity: sha512-VhydHotNW5w1UGK0Qj96BwSk/Zqbp9WbnyK2W/eVMv4QyF41INRGpjUhFJY7/uDNuudSc33a/PKr4iDqRduvHw==}
+
+  comlink@4.4.2:
+    resolution: {integrity: sha512-OxGdvBmJuNKSCMO4NTl1L47VRp6xn2wG4F/2hYzB6tiCb709otOxtEYCSvK80PtjODfXXZu8ds+Nw5kVCjqd2g==}
 
   cookie-es@3.1.1:
     resolution: {integrity: sha512-UaXxwISYJPTr9hwQxMFYZ7kNhSXboMXP+Z3TRX6f1/NyaGPfuNUZOWP1pUEb75B2HjfklIYLVRfWiFZJyC6Npg==}
@@ -2579,6 +2585,8 @@ snapshots:
       '@codemirror/search': 6.7.2
       '@codemirror/state': 6.7.5
       '@codemirror/view': 6.43.12
+
+  comlink@4.4.2: {}
 
   cookie-es@3.1.1: {}
 

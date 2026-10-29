@@ -114,6 +114,11 @@ open beyond `font-src 'self'`.
 - **A plain `<textarea>` is the default**, via `components/ui/CodeArea`. It is
   faster on 100k lines than any editor and gives native find, select-all, copy
   and undo for free. CodeMirror is justified only in diff and JSON.
+- **Never run a user-supplied regex on the main thread.** Anything that can
+  go pathological — user regexes, unbounded transforms of pasted input — runs
+  through `lib/worker/spawn.ts` (`useWorkerJob` in components). A
+  backtracking regex never yields, so `terminate()` is the only abort; the
+  job runner supersedes busy workers and offers Cancel after 2s.
 - No `manualChunks` in `vite.config.ts`. Splitting follows the registry's
   dynamic imports; hand-tuning is how CodeMirror lands in the entry bundle.
 - Entry bundle budget: **~90 kB gzip.** It is ~83 kB today. If it jumps,
