@@ -1,0 +1,96 @@
+{
+  "name": "@fadeltd/devtools-core",
+  "version": "0.0.0",
+  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, diff, base64, IDs, text statistics and HTML to text. Pure functions, no DOM, no network.",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./base64": {
+      "types": "./dist/base64/index.d.ts",
+      "default": "./dist/base64/index.js"
+    },
+    "./diff": {
+      "types": "./dist/diff/index.d.ts",
+      "default": "./dist/diff/index.js"
+    },
+    "./html-text": {
+      "types": "./dist/html-text/index.d.ts",
+      "default": "./dist/html-text/index.js"
+    },
+    "./id-gen": {
+      "types": "./dist/id-gen/index.d.ts",
+      "default": "./dist/id-gen/index.js"
+    },
+    "./json": {
+      "types": "./dist/json/index.d.ts",
+      "default": "./dist/json/index.js"
+    },
+    "./list": {
+      "types": "./dist/list/index.d.ts",
+      "default": "./dist/list/index.js"
+    },
+    "./random": {
+      "types": "./dist/random/index.d.ts",
+      "default": "./dist/random/index.js"
+    },
+    "./text": {
+      "types": "./dist/text/index.d.ts",
+      "default": "./dist/text/index.js"
+    },
+    "./text-stats": {
+      "types": "./dist/text-stats/index.d.ts",
+      "default": "./dist/text-stats/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.html",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch --preserveWatchOutput",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "change-case": "5.4.4",
+    "diff": "9.0.0",
+    "jsonc-parser": "3.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.9.2",
+    "fast-check": "4.10.2",
+    "typescript": "7.0.2",
+    "vitest": "5.0.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fadeltd/devtools.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/fadeltd/devtools/tree/main/packages/core#readme",
+  "keywords": [
+    "base64",
+    "json",
+    "diff",
+    "dedupe",
+    "natural sort",
+    "list",
+    "text statistics",
+    "html to text",
+    "id generator"
+  ],
+  "publishConfig": {
+    "access": "public"
+  }
+}

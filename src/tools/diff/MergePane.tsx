@@ -3,7 +3,7 @@ import { EditorState, type Extension } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
 import { MergeView, goToNextChunk, goToPreviousChunk, unifiedMergeView } from '@codemirror/merge'
 import { diffTheme } from './theme'
-import type { IgnoreOptions } from './core/ignore'
+import type { IgnoreOptions } from '@fadeltd/devtools-core/diff'
 import { makeDiffConfig } from './engine'
 
 export interface DiffApi {

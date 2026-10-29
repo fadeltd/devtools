@@ -1,6 +1,5 @@
 import { Change, diff, type DiffConfig } from '@codemirror/merge'
-import { computeDiff } from './core/engine'
-import { keysFor, type IgnoreOptions } from './core/ignore'
+import { computeDiff, keysFor, type IgnoreOptions } from '@fadeltd/devtools-core/diff'
 
 export interface DiffSettings {
   ignore: IgnoreOptions

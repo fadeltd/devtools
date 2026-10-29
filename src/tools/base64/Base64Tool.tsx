@@ -20,12 +20,17 @@ import {
   decodeText,
   encodeText,
   type Alphabet,
-} from './core/codec'
-import { hexDump } from './core/hex'
-import { isImageMime, sniffMime } from './core/magic'
-import { firstInvalidIndex, sanitizeBase64Input } from './core/sanitize'
-import { effectiveMime, mimeMismatch, type OutputForm } from './core/snippets'
-import { FILE_MAX_BYTES, fileTier } from './core/tiers'
+  hexDump,
+  isImageMime,
+  sniffMime,
+  firstInvalidIndex,
+  sanitizeBase64Input,
+  effectiveMime,
+  mimeMismatch,
+  type OutputForm,
+  FILE_MAX_BYTES,
+  fileTier,
+} from '@fadeltd/devtools-core/base64'
 import { DecodedImage, FileEncoder, type StoredFile } from './FilePanes'
 
 type Direction = 'encode' | 'decode'

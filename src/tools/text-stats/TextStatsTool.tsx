@@ -10,8 +10,7 @@ import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatBytes, formatCount } from '@/lib/util/bytes'
-import { analyzeText, formatDuration } from './core/stats'
-import { wordFrequencies } from './core/frequency'
+import { analyzeText, formatDuration, wordFrequencies } from '@fadeltd/devtools-core/text-stats'
 
 interface State {
   text: string

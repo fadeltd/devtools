@@ -1,8 +1,14 @@
 import type { ReactNode } from 'react'
 import { CodeArea } from '@/components/ui/CodeArea'
 import { Select, Toggle } from '@/components/ui/Select'
-import { CASE_LABELS } from './core/ops'
-import type { BlankPolicy, CaseTarget, LineTest, Op, SortMode } from './core/types'
+import {
+  CASE_LABELS,
+  type BlankPolicy,
+  type CaseTarget,
+  type LineTest,
+  type Op,
+  type SortMode,
+} from '@fadeltd/devtools-core/list'
 
 const field = 'min-h-11 w-full rounded-[4px] border border-border bg-bg px-2 font-mono text-fg md:min-h-7'
 

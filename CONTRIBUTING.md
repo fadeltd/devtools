@@ -20,21 +20,21 @@ This is the whole product, not a feature. It is why there is no backend, no anal
 
 The CSP in `public/_headers` enforces this and doubles as a dependency filter: **no `'unsafe-eval'`**. A library that needs `new Function` or `eval` is declined on those grounds alone.
 
-**2. Logic lives in `core/`, not in components.**
+**2. Logic lives in `@fadeltd/devtools-core`, not in components.**
 
-Every tool is `src/tools/<slug>/core/**` — pure functions taking strings, bytes and options, returning data, with no React, DOM or store imports — plus a thin `.tsx` shell.
+Every tool's engine is in `packages/core/src/<slug>/` — pure functions taking strings, bytes and options, returning data, with no React, DOM, app or store imports (oxlint enforces this) — published to npm as `@fadeltd/devtools-core`. The site imports the compiled package and adds a thin `.tsx` shell in `src/tools/<slug>/`.
 
-All test effort goes into `core/`. There are no component tests and no end-to-end suite, and that is deliberate. If your PR adds logic to a `.tsx` file, it is probably in the wrong place.
+All test effort goes into the package. There are no component tests and no end-to-end suite, and that is deliberate. If your PR adds logic to a `.tsx` file, it is probably in the wrong place.
 
 ## Adding a tool
 
-One new folder under `src/tools/` plus one entry in `src/lib/registry/index.ts`. The router, home grid, sidebar, command palette, build-time prerender and sitemap all read from that registry, so nothing else needs editing. **If you find yourself hand-editing the router or the sitemap script, stop** — the abstraction is broken and fixing that is the actual change.
+The engine in `packages/core/src/<slug>/` (an `index.ts` plus an `exports` entry in `packages/core/package.json`), one folder under `src/tools/`, and one entry in `src/lib/registry/index.ts`. The router, home grid, sidebar, command palette, build-time prerender and sitemap all read from that registry, so nothing else needs editing. **If you find yourself hand-editing the router or the sitemap script, stop** — the abstraction is broken and fixing that is the actual change.
 
 ## Checks
 
 ```bash
 pnpm install          # pnpm only, never npm or yarn
-pnpm exec tsc --noEmit
+pnpm typecheck        # builds the package first: the app imports its dist/
 pnpm lint
 pnpm test
 pnpm build
@@ -71,6 +71,30 @@ Merging to `main` then does the rest, automatically:
 An empty `[Unreleased]` releases nothing, so a docs-only or refactor merge ships nothing. That is deliberate: merging and releasing are separate decisions.
 
 Deploy is always started explicitly by Release, never left to the tag event. A tag pushed by automation may or may not trigger `on: push: tags` depending on which credential pushed it, and a deploy that silently does not happen looks exactly like a deploy that succeeded. Dispatching every time is deterministic, and Deploy is idempotent so a duplicate run is harmless.
+
+### The package releases separately
+
+`@fadeltd/devtools-core` has its own `packages/core/CHANGELOG.md` and its own version, released by the same workflow and tagged `core-vx.y.z`, then published to npm with provenance. Add an entry there when you change an engine's API or behaviour; add one to the site's `CHANGELOG.md` as well if a visitor would notice. Either, both or neither may release on a merge. A core tag never deploys the site.
+
+Before 1.0, a minor version of the package may change its API, so mark those entries `### Breaking`.
+
+Publishing uses npm **trusted publishing**: npm checks that the upload comes from `release.yml` in `fadeltd/devtools` over OIDC, so no npm token is stored anywhere and nothing needs rotating. Provenance is attached automatically.
+
+#### First publish
+
+npm only accepts a trusted publisher for a package that already exists, so the first version goes up by hand, once. After the merge that cuts it (Release reports "not on npm yet"), from the release tag:
+
+```bash
+git fetch --tags && git checkout core-v0.1.0
+pnpm install && pnpm core:build
+cd packages/core
+npm login                                   # your npm account, with 2FA
+npm publish --access public
+npm trust github @fadeltd/devtools-core --repo fadeltd/devtools --file release.yml --allow-publish
+npm trust list @fadeltd/devtools-core       # confirm it
+```
+
+This first version has no provenance badge (provenance needs CI). From then on, every merge that cuts a `core-v*` tag publishes on its own. Optionally, set the package's publishing access on npmjs.com to "Require two-factor authentication and disallow tokens" so that trusted publishing is the only way in.
 
 Two notes for anyone editing the workflows:
 

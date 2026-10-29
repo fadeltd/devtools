@@ -1,5 +1,6 @@
 /**
- * Cut a release from CHANGELOG.md.
+ * Cut a release from a changelog: the site's CHANGELOG.md by default, or
+ * @fadeltd/devtools-core's with --changelog/--package/--tag-prefix.
  *
  * Reads the Unreleased section, decides the semver bump from its headings,
  * rewrites CHANGELOG.md and package.json, and prints the outcome for the
@@ -7,14 +8,13 @@
  * committing, tagging and pushing, so this stays runnable locally as a dry run.
  *
  *   pnpm exec vite-node scripts/release.ts --dry-run
+ *   pnpm exec vite-node scripts/release.ts --changelog packages/core/CHANGELOG.md \
+ *     --package packages/core/package.json --tag-prefix core-v --dry-run
  */
 import { appendFileSync, readFileSync, writeFileSync } from 'node:fs'
-import { applyRelease } from './changelog'
+import { applyRelease, parseReleaseArgs } from './changelog'
 
-const dryRun = process.argv.includes('--dry-run')
-
-const changelogPath = 'CHANGELOG.md'
-const packagePath = 'package.json'
+const { changelogPath, packagePath, tagPrefix, dryRun } = parseReleaseArgs(process.argv.slice(2))
 
 const changelog = readFileSync(changelogPath, 'utf8')
 const pkg = JSON.parse(readFileSync(packagePath, 'utf8')) as { version: string }
@@ -35,7 +35,7 @@ if (!result) {
 
 console.log(`bump    : ${result.bump}`)
 console.log(`version : ${pkg.version} -> ${result.version}`)
-console.log(`tag     : v${result.version}`)
+console.log(`tag     : ${tagPrefix}${result.version}`)
 
 if (dryRun) {
   console.log('\n--- notes ---')
@@ -49,7 +49,7 @@ writeFileSync(packagePath, JSON.stringify({ ...pkg, version: result.version }, n
 
 emit('released', 'true')
 emit('version', result.version)
-emit('tag', `v${result.version}`)
+emit('tag', `${tagPrefix}${result.version}`)
 
 // Release notes can be multi-line, so they need the delimiter form.
 const out = process.env.GITHUB_OUTPUT
@@ -57,4 +57,4 @@ if (out) {
   appendFileSync(out, `notes<<RELEASE_NOTES_EOF\n${result.notes}\nRELEASE_NOTES_EOF\n`)
 }
 
-console.log('\nCHANGELOG.md and package.json updated.')
+console.log(`\n${changelogPath} and ${packagePath} updated.`)

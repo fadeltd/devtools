@@ -30,8 +30,9 @@ jobs:
       # Fails loudly if the lockfile has drifted, which is the point of pnpm here.
       - run: pnpm install --frozen-lockfile
 
+      # Builds @fadeltd/devtools-core first: the app imports its compiled dist/.
       - name: Typecheck
-        run: pnpm exec tsc --noEmit
+        run: pnpm typecheck
 
       - name: Lint
         run: pnpm lint
@@ -41,6 +42,22 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      # What npm users would get. Fails if the tarball lost its type
+      # declarations or picked up tests and fixtures.
+      - name: Check the devtools-core tarball
+        working-directory: packages/core
+        run: |
+          set -euo pipefail
+          pnpm pack --pack-destination "$RUNNER_TEMP" >/dev/null
+          LIST=$(tar -tzf "$RUNNER_TEMP"/fadeltd-devtools-core-*.tgz)
+          for sub in base64 diff html-text id-gen json list random text text-stats; do
+            echo "$LIST" | grep -qx "package/dist/$sub/index.d.ts" || { echo "::error::Missing dist/$sub/index.d.ts"; exit 1; }
+          done
+          if echo "$LIST" | grep -E '\.test\.|fixture'; then
+            echo "::error::Tests or fixtures would be published."
+            exit 1
+          fi
 
       # The entry bundle is what every visitor pays for on first load. If a
       # heavy dependency escapes a lazy route chunk, this is where we find out

@@ -12,11 +12,17 @@ import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatCount } from '@/lib/util/bytes'
-import { countStats } from '@/lib/text/counts'
+import { countStats } from '@fadeltd/devtools-core/text'
 import { useWorkerJob, type JobStatus } from '@/lib/worker/useWorkerJob'
-import { parseLines } from './core/lines'
-import { defaultOp, isOpKind, withRouteKind, type Step } from './core/ops'
-import type { Op, StepStat } from './core/types'
+import {
+  parseLines,
+  defaultOp,
+  isOpKind,
+  withRouteKind,
+  type Step,
+  type Op,
+  type StepStat,
+} from '@fadeltd/devtools-core/list'
 import { Pipeline } from './Pipeline'
 import type { PipelineApi, PipelineOutput } from './pipeline.worker'
 

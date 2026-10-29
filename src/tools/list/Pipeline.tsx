@@ -5,8 +5,16 @@ import { Button } from '@/components/ui/Button'
 import { Select, Toggle } from '@/components/ui/Select'
 import { formatCount } from '@/lib/util/bytes'
 import { cn } from '@/lib/util/cn'
-import { defaultOp, moveStep, OP_KINDS, OP_LABELS, summarizeOp, type OpKind, type Step } from './core/ops'
-import type { StepStat } from './core/types'
+import {
+  defaultOp,
+  moveStep,
+  OP_KINDS,
+  OP_LABELS,
+  summarizeOp,
+  type OpKind,
+  type Step,
+  type StepStat,
+} from '@fadeltd/devtools-core/list'
 import { OpControls } from './OpControls'
 
 /**

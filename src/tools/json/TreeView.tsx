@@ -13,9 +13,10 @@ import {
   pathOf,
   toggle,
   type FlatNode,
-} from './core/tree'
-import { toDotPath, toJsonPointer } from './core/embedded'
-import { toJqPath } from './core/paths'
+  toDotPath,
+  toJsonPointer,
+  toJqPath,
+} from '@fadeltd/devtools-core/json'
 
 // Matches the palette rows: a 44px touch target below md, the 22px code-table
 // grid from DESIGN.md above it.

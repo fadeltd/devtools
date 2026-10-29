@@ -9,9 +9,16 @@ import { CopyButton } from '@/components/ui/CopyButton'
 import { formatBytes } from '@/lib/util/bytes'
 import { downloadBlob } from '@/lib/util/download'
 import { useWorkerJob } from '@/lib/worker/useWorkerJob'
-import { base64Length, type Alphabet, type EncodeOptions } from './core/codec'
-import { formatOutput, type Dimensions, type OutputForm } from './core/snippets'
-import { fileTier, headOf } from './core/tiers'
+import {
+  base64Length,
+  type Alphabet,
+  type EncodeOptions,
+  formatOutput,
+  type Dimensions,
+  type OutputForm,
+  fileTier,
+  headOf,
+} from '@fadeltd/devtools-core/base64'
 import type { FileApi, Inspected } from './file.worker'
 
 export interface StoredFile {

@@ -21,7 +21,7 @@ import {
   strength,
   type AlphabetName,
   type IdOptions,
-} from './core/generate'
+} from '@fadeltd/devtools-core/id-gen'
 
 const ALPHABET_LABELS: Record<AlphabetName | 'custom', string> = {
   alphanumeric: 'Alphanumeric (A–Z a–z 0–9)',
