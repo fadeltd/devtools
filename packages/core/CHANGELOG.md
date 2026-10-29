@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.5.0] — 2026-10-29
+
 ### Added
 - `/yaml-toml`: `convert(input, from, to, options)` between JSON, YAML and TOML with `from: 'auto'`, returning errors, warnings and notes with line, column and a caret snippet; never throws. Also `guessFormat` and `stringifyJson` (JSON with exact bigint digits).
 - `/sql`: `formatSql` over twelve dialects via `sql-formatter`, with errors as line and column, and a dialect-aware `minifySql` that never touches strings, quoted identifiers or comments. `sql-formatter` is an optional peer dependency, loaded on first use.

@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.12.0] — 2026-10-29
+
 ### Added
 - YAML / JSON / TOML: convert between all three formats in any direction, with the input format detected for you. Every parse error shows its line and column with a caret; YAML follows the 1.2 rules and points out where a 1.1 reader would differ (`no`, `on`, `0755`); YAML-to-YAML keeps comments; anchors and merge keys are expanded; multi-document YAML converts as an array or one document at a time; integers beyond 2^53 stay exact, and a `null` going to TOML is reported with its key path.
 - SQL Formatter: format SQL for PostgreSQL, MySQL, MariaDB, SQLite, BigQuery, Snowflake, SQL Server, Oracle PL/SQL, Redshift, Spark, Trino or standard SQL, with keyword case, indent and blank lines between statements. Comments are kept, a query that won't parse shows where it stopped, and Minify squeezes a query onto one line without touching strings, quoted names or comments.
