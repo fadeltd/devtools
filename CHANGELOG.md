@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.10.0] — 2026-10-29
+
 ### Added
 - JSON Formatter: narrow the output to one part of the document. Select a node in Tree view and press Filter, or type a path into the new Filter field as `.items[0].id`, `items[0].id`, `$.items[0].id` or `/items/0/id`. Both the text output and the tree show just that node, and Copy copies just that node. Copied paths still point into the whole document. A path that doesn't match says where it stopped (`.items has 3 items; there is no [5]`), and the ↑ button moves up one level.
 
