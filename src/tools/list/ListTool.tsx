@@ -13,7 +13,7 @@ import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatCount } from '@/lib/util/bytes'
 import { countStats } from '@/lib/text/counts'
-import { useWorkerJob } from '@/lib/worker/useWorkerJob'
+import { useWorkerJob, type JobStatus } from '@/lib/worker/useWorkerJob'
 import { parseLines } from './core/lines'
 import { defaultOp, isOpKind, withRouteKind, type Step } from './core/ops'
 import type { Op, StepStat } from './core/types'
@@ -46,6 +46,41 @@ function spawnPipeline() {
 
 function runInWorker(api: Remote<PipelineApi>, input: Input): Promise<PipelineOutput> {
   return api.run(input.text, input.ops)
+}
+
+function RunStatus({
+  status,
+  error,
+  onCancel,
+}: {
+  status: JobStatus
+  error: string | undefined
+  onCancel: () => void
+}) {
+  switch (status) {
+    case 'slow':
+      return (
+        <>
+          <Badge tone="warn" title="Probably a regex that backtracks badly">
+            Still running after 2s
+          </Badge>
+          <Button variant="danger" onClick={onCancel}>
+            Cancel
+          </Button>
+        </>
+      )
+    case 'cancelled':
+      return (
+        <Badge tone="del" title="Edit a step or the input to run again">
+          Cancelled — output is from the last finished run
+        </Badge>
+      )
+    case 'error':
+      return <Badge tone="del">{error}</Badge>
+    case 'running':
+    case 'done':
+      return null
+  }
 }
 
 export default function ListTool() {
@@ -129,7 +164,6 @@ export default function ListTool() {
       }
     >
       <TwoPane
-        rightLabel="Steps & output"
         left={
           <div className="flex min-h-0 w-full flex-col">
             <CodeArea
@@ -148,9 +182,9 @@ export default function ListTool() {
             </div>
           </div>
         }
-        right={
-          <div className="flex min-h-0 w-full flex-col border-t border-border md:flex-row md:border-t-0 md:border-l">
-            <div className="max-h-[45dvh] shrink-0 overflow-y-auto border-b border-border bg-surface scroll-thin md:max-h-none md:w-[300px] md:border-b-0 md:border-r">
+        middle={
+          <div className="flex w-full flex-col bg-surface">
+            <div className="min-h-0 flex-1 overflow-y-auto scroll-thin">
               <Pipeline
                 steps={steps}
                 stats={stats}
@@ -159,38 +193,31 @@ export default function ListTool() {
                 onReshuffle={() => setState((p) => ({ ...p, shuffleNonce: p.shuffleNonce + 1 }))}
               />
             </div>
-
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-              <CodeArea value={output} readOnly placeholder="Output appears here" />
-              <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
-                <span>
-                  {formatCount(inputLines)} → {formatCount(outputLines)} lines
-                </span>
-                <span>{formatCount(counts.words)} words</span>
-                <span>{formatCount(counts.graphemes)} chars</span>
-                <span>{formatCount(counts.bytes)} bytes</span>
-                {result !== undefined && result.collisions > 0 && (
-                  <Badge tone="warn" title="These look identical but are encoded differently">
-                    {result.collisions} differ only by Unicode form
-                  </Badge>
-                )}
-                {job.status === 'slow' && (
-                  <>
-                    <Badge tone="warn" title="Probably a regex that backtracks badly">
-                      Still running after 2s
-                    </Badge>
-                    <Button variant="danger" onClick={job.cancel}>
-                      Cancel
-                    </Button>
-                  </>
-                )}
-                {job.status === 'cancelled' && (
-                  <Badge tone="del" title="Edit a step or the input to run again">
-                    Cancelled — output is from the last finished run
-                  </Badge>
-                )}
-                {job.status === 'error' && <Badge tone="del">{job.error}</Badge>}
+            {/* On a phone the output footer is on another tab; Cancel must be
+                reachable from where the regex is being typed. */}
+            {(job.status === 'slow' || job.status === 'cancelled' || job.status === 'error') && (
+              <div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-border px-3 py-1.5 font-mono text-[11px] md:hidden">
+                <RunStatus status={job.status} error={job.error} onCancel={job.cancel} />
               </div>
+            )}
+          </div>
+        }
+        right={
+          <div className="flex min-h-0 w-full flex-col border-t border-border md:border-t-0 md:border-l">
+            <CodeArea value={output} readOnly placeholder="Output appears here" />
+            <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
+              <span>
+                {formatCount(inputLines)} → {formatCount(outputLines)} lines
+              </span>
+              <span>{formatCount(counts.words)} words</span>
+              <span>{formatCount(counts.graphemes)} chars</span>
+              <span>{formatCount(counts.bytes)} bytes</span>
+              {result !== undefined && result.collisions > 0 && (
+                <Badge tone="warn" title="These look identical but are encoded differently">
+                  {result.collisions} differ only by Unicode form
+                </Badge>
+              )}
+              <RunStatus status={job.status} error={job.error} onCancel={job.cancel} />
             </div>
           </div>
         }
