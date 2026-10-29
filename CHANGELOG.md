@@ -6,7 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+- On phones, the GitHub and Settings icons at the top right no longer have a wide empty gap between them.
 
 ## [0.7.0] — 2026-10-29
 
