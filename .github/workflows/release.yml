@@ -91,11 +91,28 @@ jobs:
           fi
 
           for TAG in $TAGS; do
-            if git ls-remote --exit-code --tags origin "refs/tags/${TAG}" >/dev/null 2>&1; then
-              echo "::notice::${TAG} already exists on the remote."
-            else
-              git tag -a "${TAG}" -m "${TAG}"
+            # Tag the release commit itself -- the one whose subject names this
+            # tag -- not whatever main points at, so a re-run after a later
+            # merge still tags the right commit.
+            RELEASE_COMMIT=$(git log -n 50 --format='%H %s' | awk -v t="$TAG" '$2 == "Release" { for (i = 3; i <= NF; i++) if ($i == t) { print $1; exit } }')
+            if [ -z "$RELEASE_COMMIT" ]; then
+              echo "::error::Could not find the release commit for ${TAG}."
+              exit 1
+            fi
+
+            # An existing tag is only "already done" if it points at the
+            # release commit. core-v0.1.0 was once pushed by hand onto the merge
+            # commit seconds before this step; trusting it silently attached
+            # the release to code that still said version 0.0.0.
+            REMOTE=$(git ls-remote --tags origin "refs/tags/${TAG}" "refs/tags/${TAG}^{}" | awk '{ print $1 }' | tail -n 1)
+            if [ -z "$REMOTE" ]; then
+              git tag -a "${TAG}" "${RELEASE_COMMIT}" -m "${TAG}"
               git push origin "${TAG}"
+            elif [ "$REMOTE" = "$RELEASE_COMMIT" ]; then
+              echo "::notice::${TAG} already exists on the release commit."
+            else
+              echo "::error::${TAG} exists but points at ${REMOTE}, not the release commit ${RELEASE_COMMIT}. Tags are created only by this workflow: delete the stray tag (and its GitHub release, if any) and re-run."
+              exit 1
             fi
           done
 
@@ -110,7 +127,7 @@ jobs:
           TAG: ${{ steps.cut.outputs.tag }}
           NOTES: ${{ steps.cut.outputs.notes }}
         run: |
-          gh release create "$TAG" --title "$TAG" --notes "$NOTES" \
+          gh release create "$TAG" --verify-tag --title "$TAG" --notes "$NOTES" \
             || echo "::notice::Release already exists."
 
       # Always dispatch, unconditionally.
@@ -136,7 +153,7 @@ jobs:
           TAG: ${{ steps.cut_core.outputs.tag }}
           NOTES: ${{ steps.cut_core.outputs.notes }}
         run: |
-          gh release create "$TAG" --title "@fadeltd/devtools-core ${TAG#core-v}" --notes "$NOTES" \
+          gh release create "$TAG" --verify-tag --title "@fadeltd/devtools-core ${TAG#core-v}" --notes "$NOTES" \
             || echo "::notice::Release already exists."
 
       # Trusted publishing (OIDC): npm verifies that this workflow, in this
@@ -160,10 +177,11 @@ jobs:
             echo "::notice::@fadeltd/devtools-core@${VERSION} is already on npm."
             exit 0
           fi
-          # npm only lets a trusted publisher be configured for a package that
-          # already exists, so the very first version is published by hand.
+          # npm only accepts a trusted publisher for a package name that exists.
+          # The name is registered (with an empty placeholder) and trusted, so
+          # this only fires if that setup is ever lost.
           if ! npm view @fadeltd/devtools-core name >/dev/null 2>&1; then
-            echo "::warning::@fadeltd/devtools-core is not on npm yet. Publish ${VERSION} once by hand and add this workflow as its trusted publisher (CONTRIBUTING.md, 'First publish'), then re-run this workflow."
+            echo "::warning::@fadeltd/devtools-core is not registered on npm, so no trusted publisher can exist for it. See CONTRIBUTING.md, 'Trusted publisher setup', then re-run this workflow."
             exit 0
           fi
           # OIDC publishing needs npm 11.5.1+; Node 22 ships npm 10.

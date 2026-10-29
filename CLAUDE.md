@@ -43,7 +43,7 @@ Inside the package, relative imports carry a `.ts` extension; `rewriteRelativeIm
 
 This is what makes ~30 tools maintainable, what lets any phase stop and still ship something correct, and what lets the engines be reused in other apps and a CLI.
 
-**Two changelogs, two versions.** The site (`CHANGELOG.md`, tags `v*`) and the package (`packages/core/CHANGELOG.md`, tags `core-v*`) release independently. A change to an engine's API or behaviour needs an entry in the package changelog; if it also changes what a site visitor sees, it needs one in the site changelog too. Before 1.0, a breaking package change is a minor bump — call it out under `### Breaking`.
+**Two changelogs, two versions.** The site (`CHANGELOG.md`, tags `v*`) and the package (`packages/core/CHANGELOG.md`, tags `core-v*`) release independently. A change to an engine's API or behaviour needs an entry in the package changelog; if it also changes what a site visitor sees, it needs one in the site changelog too. Before 1.0, a breaking package change is a minor bump — call it out under `### Breaking`. Tags (`v*`, `core-v*`) are created only by the Release workflow, on the release commit; never tell anyone to create, push or check out a release tag before Release has made it. The package is published only by CI, through npm trusted publishing (OIDC, no token).
 
 ## Design system
 
