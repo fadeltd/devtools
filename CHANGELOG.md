@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.6.1] — 2026-10-29
+
 ### Fixed
 - Checkboxes now show a tick when checked. Before, a checked box was a plain white square, so on and off were hard to tell apart.
 
