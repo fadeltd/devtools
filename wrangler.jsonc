@@ -6,7 +6,7 @@
     "directory": "./dist/",
     // Serves /index.html with 200 for unmatched paths, so /diff survives a hard
     // refresh. Real files still win, which is what makes the prerendered
-    // per-tool HTML in scripts/prerender.ts work.
+    // per-tool HTML in scripts/seo.ts work.
     "not_found_handling": "single-page-application",
     "html_handling": "drop-trailing-slash"
   },

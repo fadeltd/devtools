@@ -4,7 +4,8 @@
  * A client-only SPA serves one empty <div id="root"> for every URL, which is
  * this architecture's biggest SEO weakness. So after `vite build` we write a
  * real HTML file per tool route, each with its own title, description,
- * canonical, Open Graph tags, JSON-LD and an <h1> plus a static summary.
+ * canonical, Open Graph tags, JSON-LD and an <h1> plus a static summary and
+ * the tool's paragraph from src/lib/registry/about.ts.
  *
  * This composes with Cloudflare rather than fighting it: real assets take
  * priority over `not_found_handling`, so /diff serves the prerendered file
@@ -13,6 +14,7 @@
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { ABOUT } from '../src/lib/registry/about'
 import { VISIBLE_TOOLS } from '../src/lib/registry/index'
 import { CATEGORY_LABELS } from '../src/lib/registry/types'
 
@@ -69,6 +71,7 @@ function bodyFor(tool: (typeof VISIBLE_TOOLS)[number]): string {
     '<div class="prerender">',
     `<h1>${escapeHtml(tool.title)}</h1>`,
     `<p>${escapeHtml(tool.blurb)}</p>`,
+    `<p>${escapeHtml(ABOUT[tool.slug])}</p>`,
     `<p>Category: ${escapeHtml(CATEGORY_LABELS[tool.category])}.`,
     ` Runs entirely in your browser — nothing you paste is uploaded.</p>`,
     `<p>Also handles: ${escapeHtml(tool.keywords.join(', '))}.</p>`,

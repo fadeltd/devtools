@@ -8,8 +8,8 @@ import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatNumber } from '@fadeltd/devtools-core/color'
-import { ColorField, parseField } from './ColorField'
-import { Swatch } from './Swatch'
+import { ColorField, parseField } from '@/components/ui/ColorField'
+import { Swatch } from '@/components/ui/Swatch'
 
 interface State {
   input: string

@@ -30,6 +30,7 @@
     "cmdk": "1.1.1",
     "codemirror": "6.0.2",
     "comlink": "4.4.2",
+    "dompurify": "3.4.17",
     "idb-keyval": "6.3.0",
     "lucide-react": "1.47.0",
     "prettier": "3.9.10",
@@ -51,6 +52,7 @@
     "typescript": "7.0.2",
     "vite": "8.3.0",
     "vite-node": "^6.0.0",
+    "vite-plugin-pwa": "2.0.0",
     "vitest": "5.0.1",
     "wrangler": "4.136.1"
   },

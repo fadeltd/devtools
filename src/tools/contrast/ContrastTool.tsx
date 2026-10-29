@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/Button'
 import { CopyButton } from '@/components/ui/CopyButton'
 import { useToolState } from '@/lib/persist/useToolState'
 import { useToolUsageTracker } from '@/lib/prefs'
-import { ColorField, parseField } from '@/tools/color/ColorField'
-import { Swatch } from '@/tools/color/Swatch'
+import { ColorField, parseField } from '@/components/ui/ColorField'
+import { Swatch } from '@/components/ui/Swatch'
 import {
   checkContrast,
   formatRatio,

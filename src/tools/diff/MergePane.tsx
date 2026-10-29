@@ -174,9 +174,9 @@ export function MergePane(props: MergePaneProps) {
       },
     })
     return () => onReady(null)
-    // `mode` matters: which underlying view exists changes with it, so the
-    // handle has to be rebuilt.
-  }, [onReady, mode])
+    // No `mode` dependency: jump and focus read the refs when called, so one
+    // handle serves both the split and the unified view.
+  }, [onReady])
 
   return <div ref={host} className="h-full min-h-0 *:h-full scroll-thin" />
 }

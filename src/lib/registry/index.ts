@@ -33,7 +33,8 @@ import type { ToolDef } from './types'
  * The single source of truth. This array drives the router, the home grid, the
  * sidebar, the command palette, the build-time prerender and the sitemap.
  *
- * Adding a tool = one folder under src/tools/ + one entry here. If a change
+ * Adding a tool = one folder under src/tools/ + one entry here (+ its
+ * paragraph in ./about.ts, which typecheck enforces). If a change
  * needs the router or the sitemap script edited by hand, this abstraction has
  * been broken -- fix that instead of working around it.
  */
@@ -185,8 +186,9 @@ const RAW_TOOLS = [
     category: 'data',
     icon: Braces,
     load: () => import('@/tools/json/JsonTool'),
-    store: { kind: 'local' },
-    stateVersion: 1,
+    // idb: a pasted payload can run to tens of MB, far past localStorage.
+    store: { kind: 'idb' },
+    stateVersion: 2,
     status: 'beta',
   },
   {

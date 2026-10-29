@@ -78,6 +78,10 @@
       "types": "./dist/random/index.d.ts",
       "default": "./dist/random/index.js"
     },
+    "./share": {
+      "types": "./dist/share/index.d.ts",
+      "default": "./dist/share/index.js"
+    },
     "./slug": {
       "types": "./dist/slug/index.d.ts",
       "default": "./dist/slug/index.js"
