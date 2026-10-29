@@ -154,8 +154,10 @@ describe('monotonic ULID', () => {
 
 describe('ULID through generateIds', () => {
   it('is canonical uppercase by default, lowercase on request', () => {
-    const [upper] = generateIds(opts({ count: 1 }), mulberry32(1)).ids
-    const [lower] = generateIds(opts({ count: 1, letterCase: 'lower' }), mulberry32(1)).ids
+    // Both calls need the same clock: with the real one, a millisecond tick
+    // between them changes the time prefix and the comparison fails.
+    const [upper] = generateIds(opts({ count: 1 }), mulberry32(1), fixed(T)).ids
+    const [lower] = generateIds(opts({ count: 1, letterCase: 'lower' }), mulberry32(1), fixed(T)).ids
     expect(upper).toMatch(ULID)
     expect(lower).toBe(upper!.toLowerCase())
   })
