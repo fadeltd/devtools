@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.9.0] — 2026-10-29
+
 ### Added
 - Pin your favourite tools to the top. Use the pin next to any tool's name, or Pin in the ⌘K palette, and the tool appears in a Pinned section at the top of the sidebar and the home page, in order, with its ⌘1–⌘9 shortcut shown beside it. Up to nine tools can be pinned.
 
