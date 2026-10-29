@@ -1,3 +1,4 @@
+import type { Remote } from 'comlink'
 import { useDeferredValue, useMemo } from 'react'
 import { AlertTriangle, ArrowLeftRight, CheckCircle2, Info } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
@@ -12,13 +13,16 @@ import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatBytes, formatCount } from '@/lib/util/bytes'
-import {
-  convert,
-  type Format,
-  type Indent,
-  type Message,
-  type SourceFormat,
+import { useWorkerJob } from '@/lib/worker/useWorkerJob'
+import type {
+  ConvertResult,
+  Format,
+  Indent,
+  Message,
+  SourceFormat,
 } from '@fadeltd/devtools-core/yaml-toml'
+import { utf8Length } from './utf8'
+import type { YamlTomlApi, YamlTomlRunInput } from './yaml-toml.worker'
 
 interface State {
   text: string
@@ -46,6 +50,18 @@ const INDENTS: Record<Format, ReadonlyArray<{ value: Indent; label: string }>> =
     { value: 4, label: '4 spaces' },
   ],
   toml: [],
+}
+
+/** Before the first run settles: nothing to show, nothing wrong. */
+const EMPTY: ConvertResult = { output: '', detected: null, documents: 0, errors: [], warnings: [], notes: [] }
+
+// Module-level so useWorkerJob sees stable references.
+function spawnConverter() {
+  return new Worker(new URL('./yaml-toml.worker.ts', import.meta.url), { type: 'module' })
+}
+
+function runInWorker(api: Remote<YamlTomlApi>, input: YamlTomlRunInput): Promise<ConvertResult> {
+  return api.run(input)
 }
 
 function parseIndent(v: string): Indent {
@@ -126,16 +142,23 @@ export default function YamlTomlTool() {
   useToolUsageTracker('yaml-toml')
   const { state, setState, reset } = useToolState<State>('yaml-toml', INITIAL)
 
-  const deferred = useDeferredValue(state)
-  const result = useMemo(
-    () =>
-      convert(deferred.text, deferred.from, deferred.to, {
-        indent: deferred.indent,
-        document: deferred.document,
-        tabWidth: 2,
-      }),
-    [deferred],
+  // Keeps typing responsive: the worker and the byte count run against a
+  // deferred snapshot, never the keystroke itself.
+  const deferredText = useDeferredValue(state.text)
+  const input = useMemo<YamlTomlRunInput>(
+    () => ({
+      text: deferredText,
+      from: state.from,
+      to: state.to,
+      indent: state.indent,
+      document: state.document,
+    }),
+    [deferredText, state.from, state.to, state.indent, state.document],
   )
+  const job = useWorkerJob(spawnConverter, runInWorker, input)
+  // The last finished result is kept while a newer run is in flight.
+  const result = job.result ?? EMPTY
+  const bytes = useMemo(() => utf8Length(deferredText), [deferredText])
 
   const failed = result.errors.length > 0
   const output = failed ? '' : result.output
@@ -275,7 +298,7 @@ export default function YamlTomlTool() {
               aria-label="Input"
             />
             <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
-              <span>{formatBytes(new Blob([state.text]).size)}</span>
+              <span>{formatBytes(bytes)}</span>
               {result.detected !== null && !failed && (
                 <span className="flex items-center gap-1 text-add">
                   <CheckCircle2 size={12} aria-hidden /> valid {NAMES[result.detected]}
@@ -289,6 +312,20 @@ export default function YamlTomlTool() {
                   {result.detected !== null && ` · ${NAMES[result.detected]}`}
                 </Badge>
               )}
+              {job.status === 'slow' && (
+                <>
+                  <Badge tone="warn">Still converting after 2s</Badge>
+                  <Button variant="danger" onClick={job.cancel}>
+                    Cancel
+                  </Button>
+                </>
+              )}
+              {job.status === 'cancelled' && (
+                <Badge tone="del" title="Edit the input or an option to run again">
+                  Cancelled — showing the last finished result
+                </Badge>
+              )}
+              {job.status === 'error' && <Badge tone="del">{job.error}</Badge>}
             </div>
           </div>
         }
