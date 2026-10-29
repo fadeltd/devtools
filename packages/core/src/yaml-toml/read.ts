@@ -288,8 +288,19 @@ export function readYaml(src: SourceText, target: Format): Reading {
     }
 
     visit(doc, {
-      Alias() {
+      Alias(_key, node) {
         aliases++
+        // The parser accepts `*name` with no `&name` before it; the library
+        // only throws later, from toJS or toString. Report it here, with its
+        // position, like any other parse error.
+        if (node.resolve(doc) === undefined) {
+          r.errors.push(
+            message('yaml-unresolved-alias', `Alias *${node.source} has no anchor &${node.source} before it.`, {
+              hint: 'Define the anchor (&name) before any alias (*name) that refers to it.',
+              ...src.atOffset(node.range?.[0] ?? 0),
+            }),
+          )
+        }
       },
       Node(_key, node) {
         const tag = (node as YamlNode).tag
@@ -346,7 +357,9 @@ export function readYaml(src: SourceText, target: Format): Reading {
         r.errors.push(
           message(
             'yaml-aliases',
-            e instanceof ReferenceError
+            // yaml throws a ReferenceError for several alias problems; only
+            // this message is the resource-exhaustion guard.
+            e instanceof ReferenceError && /alias count/i.test(e.message)
               ? 'Too many aliases: expanding them would explode the document, so it was not converted.'
               : `Could not convert: ${e instanceof Error ? e.message : String(e)}`,
           ),

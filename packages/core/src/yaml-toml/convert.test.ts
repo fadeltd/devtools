@@ -326,6 +326,18 @@ describe('positioned errors', () => {
     expect(line[e.snippet!.caretColumn - 1]).toBe('x')
   })
 
+  it('reports an alias with no anchor, for every target, instead of throwing', () => {
+    for (const to of ['yaml', 'json', 'toml'] as const) {
+      const r = convert('a: 1\nb: *missing\n', 'yaml', to)
+      expect(r.output).toBe('')
+      expect(r.errors).toEqual([
+        expect.objectContaining({ code: 'yaml-unresolved-alias', line: 2, column: 4 }),
+      ])
+    }
+    // The shrunk counterexample fast-check found: auto-detected as YAML.
+    expect(convert('*!', 'auto', 'yaml').errors[0]?.code).toBe('yaml-unresolved-alias')
+  })
+
   it('nothing throws on arbitrary input', () => {
     fc.assert(
       fc.property(fc.string(), fc.constantFrom<Format | 'auto'>('auto', 'json', 'yaml', 'toml'), fc.constantFrom<Format>('json', 'yaml', 'toml'), (s, from, to) => {

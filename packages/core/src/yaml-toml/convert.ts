@@ -59,7 +59,16 @@ export function convert(
   to: Format,
   options: Partial<ConvertOptions> = {},
 ): ConvertResult {
-  const r = run(input, from, to, options)
+  let r: ConvertResult
+  try {
+    r = run(input, from, to, options)
+  } catch (e) {
+    // The parsers' own errors are all caught where they arise; this is the
+    // backstop that keeps the "never throws" promise if a library throws
+    // somewhere unexpected (fast-check found one such path).
+    r = emptyResult()
+    r.errors.push(message('internal', `Could not convert: ${e instanceof Error ? e.message : String(e)}`))
+  }
   // Every document of a stream reports the same note ("dates written as
   // strings"); once is enough.
   return { ...r, errors: unique(r.errors), warnings: unique(r.warnings), notes: unique(r.notes) }
@@ -75,6 +84,10 @@ function unique(list: Message[]): Message[] {
   })
 }
 
+function emptyResult(): ConvertResult {
+  return { output: '', detected: null, documents: 0, errors: [], warnings: [], notes: [] }
+}
+
 function run(
   input: string,
   from: SourceFormat,
@@ -84,14 +97,7 @@ function run(
   const o: ConvertOptions = { ...DEFAULTS, ...options }
   // A BOM makes JSON.parse fail, and is invisible to the user anyway.
   const text = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input
-  const result: ConvertResult = {
-    output: '',
-    detected: null,
-    documents: 0,
-    errors: [],
-    warnings: [],
-    notes: [],
-  }
+  const result = emptyResult()
   if (text.trim() === '') return result
 
   const src = new SourceText(text, o.tabWidth)
