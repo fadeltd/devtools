@@ -45,9 +45,10 @@ function parseIndexRanges(spec: string, length: number): Set<number> {
     if (m) {
       const a = Number(m[1])
       const b = Number(m[2])
-      for (let i = Math.min(a, b); i <= Math.max(a, b); i++) {
-        if (i >= 1 && i <= length) out.add(i - 1)
-      }
+      // Clamped to the document first: "1-999999999999" must not loop a
+      // trillion times to select ten lines.
+      const hi = Math.min(Math.max(a, b), length)
+      for (let i = Math.max(Math.min(a, b), 1); i <= hi; i++) out.add(i - 1)
     } else if (/^\d+$/.test(t)) {
       const i = Number(t)
       if (i >= 1 && i <= length) out.add(i - 1)
