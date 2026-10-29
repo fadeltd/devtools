@@ -7,7 +7,7 @@ body:
       value: |
         This project makes one promise: **nothing you paste ever leaves the browser.** So some requests are a standing no, however useful they are:
 
-        - anything that needs a server, a fetch proxy, or a third-party request (e.g. "analyse this URL")
+        - anything that needs a server, a fetch proxy, or a third-party request (e.g. "analyse this URL", or "fetch the JWKS from my identity provider" in the JWT tool; paste the JWKS instead)
         - libraries that need `eval` or `new Function`, which the Content Security Policy forbids
         - accounts, sync, or storing your data anywhere but your own browser
 
