@@ -13,7 +13,8 @@ const findings = await findNonCanonical()
 for (const f of findings) console.log(`${f.file}:${f.line}:${f.column}  ${f.from} → ${f.to}`)
 
 if (process.argv.includes('--write')) {
-  const byFile = Map.groupBy(findings, (f) => f.file)
+  const byFile = new Map<string, typeof findings>()
+  for (const f of findings) byFile.set(f.file, [...(byFile.get(f.file) ?? []), f])
   for (const [file, list] of byFile) {
     const path = join(import.meta.dirname, '..', file)
     writeFileSync(path, applyFindings(readFileSync(path, 'utf8'), list))
