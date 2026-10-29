@@ -1,3 +1,5 @@
 export * from './claims.ts'
 export * from './example.ts'
+export * from './keys.ts'
 export * from './parse.ts'
+export * from './verify.ts'
