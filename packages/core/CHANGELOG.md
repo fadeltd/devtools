@@ -6,7 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- `/timestamp`: parse Unix epochs in s/ms/µs/ns (unit auto-detected, exact to the nanosecond on BigInt) and strict ISO 8601 / RFC 3339, and format them as ISO in UTC or any IANA zone with its real offset, HTTP-date, relative time and ISO week.
+- `/jwt`: decode JWS and JWE compact tokens without verifying them: strict base64url per segment with positioned errors, `exp`/`iat`/`nbf` as dates, expiry status with clock skew, and warnings for `alg: none`, missing expiry and lossy big-number claims.
+- `/url`: component, full-URI and form percent-encoding that matches the native functions, a decoder that reports the position of the first malformed escape (or skips them in lenient mode), double-encoding detection, and query-string parsing and rebuilding that keeps duplicates and value-less flags.
+- `/hash`: SHA-1/256/384/512 digests and HMAC via WebCrypto with text, hex or base64 keys, constant-time signature comparison, and GitHub, Stripe and Slack webhook signing and verification with timestamp tolerance.
+- `/slug`: `slugify` with accent folding, transliteration, camelCase splitting and a word-safe max length; `safeFilename` that is safe on Windows, macOS and Linux at once (reserved names, forbidden characters, a 255-byte cap that keeps the extension) and reports what it changed.
+- `/text-bytes`: UTF-8 text to binary, hex, decimal or octal and back, with a tolerant parser that reports the exact bad token, format auto-detection, and the offset of the first invalid UTF-8 sequence.
+- `/number`: BigInt base conversion 2–36 with two's complement, SI and IEC byte sizes, and Unix permission parsing (octal, symbolic, `ls -l`) with chmod commands.
+- `/unicode`: per-code-point inspection with line and column, UTF-8/UTF-16 and general category; flags for invisible, bidi, control, exotic-space, variation, tag, private-use and lone-surrogate characters; and a `clean()` that keeps emoji intact.
+- `/id-gen`: UUID v4, monotonic UUID v7 and ULID generation from an injectable random source and clock, and `inspectId` to read a UUID's version and variant or a v7/ULID's timestamp.
 
 ## [0.1.0] — 2026-10-29
 

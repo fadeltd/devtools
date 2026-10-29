@@ -1,7 +1,7 @@
 {
   "name": "@fadeltd/devtools-core",
   "version": "0.1.0",
-  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, diff, base64, IDs, text statistics and HTML to text. Pure functions, no DOM, no network.",
+  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, diff, base64, IDs and UUIDs, timestamps, JWT decoding, URL encoding, hashes and HMAC, slugs, text bytes, number bases and Unicode inspection. Pure functions, no DOM, no network.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -120,7 +120,16 @@
     "list",
     "text statistics",
     "html to text",
-    "id generator"
+    "id generator",
+    "uuid",
+    "ulid",
+    "timestamp",
+    "jwt",
+    "url encode",
+    "sha256",
+    "hmac",
+    "slugify",
+    "unicode"
   ],
   "publishConfig": {
     "access": "public"

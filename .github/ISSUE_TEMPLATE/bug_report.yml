@@ -19,6 +19,15 @@ body:
         - ID Generator
         - Text Statistics
         - HTML to Text
+        - Timestamp Converter
+        - JWT Decoder
+        - URL Encode / Decode
+        - Hash Text
+        - HMAC Signature
+        - Slug Generator
+        - Text to Binary / Hex
+        - Number Converter
+        - Unicode Inspector
         - The site itself (⌘K palette, sidebar, shortcuts, saved state)
     validations:
       required: true
