@@ -1,6 +1,6 @@
 {
   "name": "@fadeltd/devtools-core",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, diff, base64, IDs and UUIDs, timestamps, JWT decoding and verification, URL encoding, hashes and HMAC, slugs, text bytes, number bases and Unicode inspection. Pure functions, no DOM, no network.",
   "license": "MIT",
   "type": "module",
