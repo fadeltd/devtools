@@ -10,12 +10,15 @@ import { SHELL_KEY, type EnvDoc } from './types.ts'
  * - `\c`: the character itself; `\` + line break joins lines
  * - anything else up to unquoted whitespace or `;` (a `#` inside a word is literal)
  *
- * Parameter expansion and command substitution are not performed: `$X` stays
- * `$X`. This exists to check toShell output, and to read it back.
+ * Commands are separated by line breaks or `;`, so `export A=1; export B=2`
+ * is two. Parameter expansion and command substitution are not performed:
+ * `$X` stays `$X`. This reads toShell output back, and shell export files
+ * pasted into the .env converter.
  */
 export function parseShellExports(input: string): EnvDoc {
   // No CRLF normalisation: a CR inside single quotes is part of the value, as
-  // it is to sh. Outside quotes a CR is just a blank.
+  // it is to sh. Outside quotes a CR is just a blank. convertEnv turns CRLF
+  // into LF before it gets here, as the .env reader does for its own input.
   const text = input
   const out = new EntryCollector()
   let p = 0
@@ -111,8 +114,16 @@ export function parseShellExports(input: string): EnvDoc {
       // Nothing after an unclosed quote can be trusted.
       break
     }
-    // The rest of the line may only be blanks, `;` or a comment.
-    const tail = /[ \t\r;]*(?:#[^\n]*)?(?:\n|$)/y
+    // `;` ends the command, and another may follow it on the same line.
+    const next = /[ \t\r]*;/y
+    next.lastIndex = p
+    if (next.test(text)) {
+      out.add({ key, value, line: start })
+      advance(next.lastIndex)
+      continue
+    }
+    // Otherwise the rest of the line may only be blanks or a comment.
+    const tail = /[ \t\r]*(?:#[^\n]*)?(?:\n|$)/y
     tail.lastIndex = p
     if (!tail.test(text)) {
       out.error(line, `${key}: unexpected text after the value.`)

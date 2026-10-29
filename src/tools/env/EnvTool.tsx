@@ -37,6 +37,7 @@ const INPUTS: { value: State['from']; label: string }[] = [
   { value: 'auto', label: 'Input: auto' },
   { value: 'dotenv', label: 'Input: .env' },
   { value: 'json', label: 'Input: JSON' },
+  { value: 'shell', label: 'Input: shell export' },
 ]
 
 const OUTPUTS: { value: EnvOutputFormat; label: string }[] = [
@@ -46,7 +47,7 @@ const OUTPUTS: { value: EnvOutputFormat; label: string }[] = [
   { value: 'docker', label: 'docker --env-file' },
 ]
 
-const FORMAT_NAME: Record<EnvInputFormat, string> = { dotenv: '.env', json: 'JSON' }
+const FORMAT_NAME: Record<EnvInputFormat, string> = { dotenv: '.env', json: 'JSON', shell: 'shell export' }
 
 const EXAMPLE = `# Every value here is made up.
 export APP_NAME=devtools
@@ -145,7 +146,7 @@ export default function EnvTool() {
           <CodeArea
             value={state.input}
             onChange={(e) => set('input', e.target.value)}
-            placeholder={'Paste a .env file or a JSON object\n\nAPI_URL=https://api.example.com\nexport TOKEN="…"'}
+            placeholder={'Paste a .env file, shell export lines or a JSON object\n\nAPI_URL=https://api.example.com\nexport TOKEN="…"'}
             aria-label="Input"
           />
         }

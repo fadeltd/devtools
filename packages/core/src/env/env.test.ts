@@ -308,6 +308,14 @@ describe('parseShellExports', () => {
     expect(vars(parseShellExports("export A='1'\r\nB=2 # c\r\nC='x\ry'\r\n"))).toEqual({ A: '1', B: '2', C: 'x\ry' })
   })
 
+  it('reads several commands on a line, separated by ;', () => {
+    const doc = parseShellExports(`export A='1'; export B="2";C=3 ;\nD=4; # c\nE=5;;`)
+    expect(vars(doc)).toEqual({ A: '1', B: '2', C: '3', D: '4', E: '5' })
+    expect(doc.entries.map((e) => e.line)).toEqual([1, 1, 1, 2, 3])
+    // `;;` is a syntax error in sh outside a case.
+    expect(errors(doc).map((e) => e.line)).toEqual([3])
+  })
+
   it('reports bad lines and unclosed quotes', () => {
     expect(errors(parseShellExports('export a.b=1')).map((e) => e.line)).toEqual([1])
     expect(errors(parseShellExports('A=1 B')).map((e) => e.line)).toEqual([1])
@@ -409,6 +417,78 @@ describe('convertEnv', () => {
     const r = convertEnv('{"A": 1}', { from: 'dotenv', to: 'json', flatten: false })
     expect(r.entries).toEqual([])
     expect(errors(r)).toHaveLength(1)
+  })
+})
+
+const readAuto = (text: string) => convertEnv(text, { from: 'auto', to: 'json', flatten: false })
+
+describe('shell export input', () => {
+  it('detects what only sh can read', () => {
+    expect(detectEnvFormat(`export A='x'; export B="y"`)).toBe('shell')
+    expect(detectEnvFormat(`export A='it'\\''s'`)).toBe('shell')
+    expect(detectEnvFormat(`export A=1\nexport B='a'"b"`)).toBe('shell')
+    const r = readAuto(`export A='x'; export B="y" # c\nexport C='it'\\''s'\n`)
+    expect(r.from).toBe('shell')
+    expect(vars(r)).toEqual({ A: 'x', B: 'y', C: "it's" })
+    expect(r.issues).toEqual([])
+  })
+
+  it('keeps .env files that use an export prefix as .env', () => {
+    // Valid in both, and the same either way.
+    expect(detectEnvFormat('export A=1\nexport B="x y"\n')).toBe('dotenv')
+    // Valid in both but read differently: dotenv's \n is a line break, sh's is not.
+    const r = readAuto('export A="a\\nb"\n')
+    expect(r.from).toBe('dotenv')
+    expect(vars(r)).toEqual({ A: 'a\nb' })
+    // Only dotenv reads these: spaces around =, an unquoted space, a dotted key.
+    expect(detectEnvFormat('export PORT = 8080')).toBe('dotenv')
+    expect(detectEnvFormat('export A=x y')).toBe('dotenv')
+    expect(detectEnvFormat("export a.b=1\nexport C='it'\\''s'")).toBe('dotenv')
+  })
+
+  it('needs an export line to call it shell', () => {
+    // sh would concatenate this, but nothing says the text is a shell file;
+    // dotenv's error is the more useful answer.
+    expect(detectEnvFormat(`A='it'\\''s'`)).toBe('dotenv')
+  })
+
+  it('falls back to .env when neither reads the text cleanly', () => {
+    const r = readAuto(`export A='x' junk 'y\nexport B=`)
+    expect(r.from).toBe('dotenv')
+    expect(errors(r).length).toBeGreaterThan(0)
+  })
+
+  it('normalises CRLF and a BOM, and keeps a lone CR inside quotes', () => {
+    const r = readAuto(`\uFEFFexport A='l1\r\nl2'; export B='x\ry'\r\nexport C='it'\\''s'\r\n`)
+    expect(r.from).toBe('shell')
+    expect(vars(r)).toEqual({ A: 'l1\nl2', B: 'x\ry', C: "it's" })
+    expect(r.entries.map((e) => e.line)).toEqual([1, 2, 3])
+  })
+
+  it('reads shell when chosen, and reports what sh would reject', () => {
+    const r = convertEnv('export A=1\nexport B=x y\n', { from: 'shell', to: 'dotenv', flatten: false })
+    expect(r.from).toBe('shell')
+    expect(r.output).toBe('A=1\n')
+    expect(errors(r).map((i) => i.line)).toEqual([2])
+  })
+
+  it('round-trips toShell output through convertEnv', () => {
+    fc.assert(
+      fc.property(envMap(shellKey), fc.boolean(), (pairs, crlf) => {
+        const clean = pairs.map(([k, v]) => [k, v.replaceAll('\0', '')] as const)
+        fc.pre(clean.length > 0)
+        let text = toShell(clean.map(([key, value], i) => ({ key, value, line: i + 1 }))).text
+        if (crlf) text = text.replaceAll('\n', '\r\n')
+        const r = convertEnv(text, { from: 'shell', to: 'json', flatten: false })
+        expect(r.issues).toEqual([])
+        // The input's CRLFs are line breaks, wherever they fall; a lone CR is data.
+        const expected = clean.map(([k, v]) => [k, (crlf ? v.replaceAll('\n', '\r\n') : v).replaceAll('\r\n', '\n')])
+        expect(r.entries.map((e) => [e.key, e.value])).toEqual(expected)
+        // Auto-detection must agree whenever .env would misread it.
+        if (clean.some(([, v]) => v.includes("'"))) expect(convertEnv(text, { from: 'auto', to: 'json', flatten: false }).from).toBe('shell')
+      }),
+      { numRuns: 500 },
+    )
   })
 })
 
