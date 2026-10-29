@@ -65,8 +65,12 @@ Merging to `main` then does the rest, automatically:
 
 1. Reads `[Unreleased]` and derives the semver bump from its headings — `### Breaking` → major, `### Added` → minor, anything else (`Fixed`, `Changed`, `Security`, `Removed`) → patch.
 2. Rewrites `CHANGELOG.md`, moving `[Unreleased]` into a dated `## [x.y.z]` section and leaving a fresh empty `[Unreleased]` behind.
-3. Bumps `version` in `package.json`, commits that back to `main`, and pushes the tag `vx.y.z`.
-4. **The tag** triggers the deploy to Cloudflare. Merging alone never deploys.
+3. Bumps `version` in `package.json`, commits that back to `main`, and tags that release commit `vx.y.z` with a GitHub release.
+4. Starts the deploy to Cloudflare for that tag. Merging alone never deploys.
+
+If a run commits the release but fails before tagging it, the next run finishes the job: Release tags every release commit on `main` that is still missing its tags or GitHub release, oldest first, and deploys the newest.
+
+If a release lands on `main` while your branch is open, merge `main` in and make sure your entries are still under `## [Unreleased]`. A plain merge keeps a new line next to its old neighbours, which may now sit under the new version heading, and then your merge releases nothing. CI fails the PR when that happens.
 
 **Never create or push a `v*` or `core-v*` tag yourself.** Release tags the release commit, the one that bumps the version. A hand-made tag on the merge commit points at code whose `package.json` still has the old version, and Release now refuses to continue when it finds one. To look at or publish a release locally, wait for the tag to appear (`git fetch --tags`).
 

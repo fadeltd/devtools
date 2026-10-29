@@ -51,10 +51,4 @@ emit('released', 'true')
 emit('version', result.version)
 emit('tag', `${tagPrefix}${result.version}`)
 
-// Release notes can be multi-line, so they need the delimiter form.
-const out = process.env.GITHUB_OUTPUT
-if (out) {
-  appendFileSync(out, `notes<<RELEASE_NOTES_EOF\n${result.notes}\nRELEASE_NOTES_EOF\n`)
-}
-
 console.log(`\n${changelogPath} and ${packagePath} updated.`)

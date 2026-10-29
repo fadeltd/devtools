@@ -2,10 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   applyRelease,
   determineBump,
+  misplacedEntries,
   nextVersion,
   parseReleaseArgs,
   parseUnreleased,
   parseVersion,
+  releaseNotes,
 } from './changelog'
 
 const doc = (unreleased: string, rest = '## [0.1.0] — 2026-01-01\n\n### Added\n- first\n') =>
@@ -180,5 +182,45 @@ describe('first release of a new package', () => {
     expect(r?.version).toBe('0.1.0')
     expect(r?.changelog).toContain('## [0.1.0] — 2026-10-29\n\n### Added\n- First release.')
     expect(r?.changelog).toContain('## [Unreleased]\n\nNothing yet.')
+  })
+})
+
+describe('releaseNotes', () => {
+  const cl = applyRelease(doc('### Fixed\n- second'), '0.1.0', '2026-02-01')!.changelog
+
+  it('returns exactly the notes applyRelease produced for that version', () => {
+    expect(releaseNotes(cl, '0.1.1')).toBe('### Fixed\n- second')
+    expect(releaseNotes(cl, '0.1.0')).toBe('### Added\n- first')
+  })
+
+  it('does not match a version that only shares a prefix', () => {
+    expect(releaseNotes(cl, '0.1')).toBeNull()
+    expect(releaseNotes(cl, '0.1.10')).toBeNull()
+    expect(releaseNotes(cl, '9.9.9')).toBeNull()
+  })
+})
+
+describe('misplacedEntries', () => {
+  // A branch adds its line under [Unreleased] next to an entry that a release
+  // then moves under [0.2.0]. Git's merge keeps the line beside that entry.
+  const pinned = '- Pinned tools.'
+  const filter = '- JSON filter.'
+  const base = doc('Nothing yet.', `## [0.2.0] — 2026-02-01\n\n### Added\n${pinned}\n\n## [0.1.0] — 2026-01-01\n\n### Added\n- first\n`)
+  const head = doc(`### Added\n${pinned}\n${filter}`)
+
+  it('flags a PR entry that the merge put inside a released section', () => {
+    const merged = base.replace(pinned, `${pinned}\n${filter}`)
+    expect(misplacedEntries(base, merged, head)).toEqual([filter])
+  })
+
+  it('passes an entry that stays under [Unreleased]', () => {
+    const merged = base.replace('Nothing yet.', `### Added\n${filter}`)
+    expect(misplacedEntries(base, merged, head)).toEqual([])
+  })
+
+  it('does not flag a correction to past release notes', () => {
+    const fixedHead = head.replace('- first', '- the first')
+    const merged = base.replace('- first', '- the first')
+    expect(misplacedEntries(base, merged, fixedHead)).toEqual([])
   })
 })
