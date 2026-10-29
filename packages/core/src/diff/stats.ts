@@ -106,31 +106,42 @@ export interface SizeVerdict {
   longestLine: number
 }
 
+/** Past this many characters on either side, the diff is refused outright. */
+export const MAX_DIFF_CHARS = 8_000_000
+/** Past this many characters on one line, the diff is refused: CodeMirror cannot lay it out. */
+export const MAX_DIFF_LINE_CHARS = 200_000
+/** Past this many characters on either side, word-level highlighting is turned off. */
+export const LINE_ONLY_CHARS = 2_000_000
+
 /**
  * Guardrails, so a pathological input degrades visibly instead of hanging.
  *
  * The single-enormous-line case matters as much as total size: CodeMirror
  * handles a 5MB document fine but not a 5MB document that is one line.
+ *
+ * Linear and cheap (the line scan is `indexOf`, not a character loop), so the
+ * UI can run it on the live text before anything reaches the editor, rather
+ * than on a deferred copy that lags a render behind.
  */
 export function assessSize(a: string, b: string): SizeVerdict {
   const longestLine = Math.max(longestLineOf(a), longestLineOf(b))
   const bytes = Math.max(a.length, b.length)
 
-  if (bytes > 8_000_000) {
+  if (bytes > MAX_DIFF_CHARS) {
     return {
       tier: 'refuse',
       reason: 'Each side must be under 8 MB. Use `git diff` or `diff` on the command line.',
       longestLine,
     }
   }
-  if (longestLine > 200_000) {
+  if (longestLine > MAX_DIFF_LINE_CHARS) {
     return {
       tier: 'refuse',
       reason: `One line is ${longestLine.toLocaleString('en-US')} characters long, which cannot be displayed usefully.`,
       longestLine,
     }
   }
-  if (bytes > 2_000_000) {
+  if (bytes > LINE_ONLY_CHARS) {
     return {
       tier: 'line-only',
       reason: 'Over 2 MB — word-level highlighting is off to keep the view responsive.',
@@ -140,14 +151,13 @@ export function assessSize(a: string, b: string): SizeVerdict {
   return { tier: 'ok', reason: null, longestLine }
 }
 
-function longestLineOf(text: string): number {
+/** Length of the longest `\n`-separated line, not counting the terminator. */
+export function longestLineOf(text: string): number {
   let longest = 0
   let start = 0
-  for (let i = 0; i < text.length; i++) {
-    if (text[i] === '\n') {
-      if (i - start > longest) longest = i - start
-      start = i + 1
-    }
+  for (let nl = text.indexOf('\n'); nl !== -1; nl = text.indexOf('\n', start)) {
+    if (nl - start > longest) longest = nl - start
+    start = nl + 1
   }
   return Math.max(longest, text.length - start)
 }
