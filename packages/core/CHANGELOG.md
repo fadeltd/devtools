@@ -18,6 +18,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - `/qr`: QR payload builders for text, URLs and Wi-Fi, encoding to a module matrix (via `uqr`), and a single-path SVG.
 - `/lorem`: lorem ipsum by exact word, sentence or paragraph count, as text, HTML or Markdown, seedable through any `RandomSource`.
 
+## [0.4.0] — 2026-10-29
+
+### Added
+- `/jwt`: `verifyJwt(token, key, { secretEncoding })` verifies a compact JWS with WebCrypto and returns `{ status: 'valid' | 'invalid' | 'error', alg, format, keyId?, keyIndex?, reason? }`. The key can be a JWK, a JWKS (chosen by `kid`, or every compatible key tried when there is none), a PEM SPKI, a PKCS#1 key or an X.509 certificate, or an HS secret as text, base64 or base64url. It refuses `alg: none`, algorithm confusion, curve and key-type mismatches and JWK `alg`/`use`/`key_ops` conflicts, recognises DER ECDSA signatures, and never throws. Also `detectKeyFormat` and `parseKey`.
+- `/slug`: `safeFilenameLines` also returns `collisions: { exact, caseOnly }`, groups of 1-based line numbers whose cleaned names are identical or equal ignoring case (after NFC), plus `findFilenameCollisions(names)`.
+
 ## [0.3.0] — 2026-10-29
 
 ### Added

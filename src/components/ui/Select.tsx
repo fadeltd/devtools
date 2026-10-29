@@ -31,16 +31,20 @@ export function Toggle({
   checked,
   onChange,
   children,
+  'aria-label': ariaLabel,
 }: {
   checked: boolean
   onChange: (v: boolean) => void
   children: ReactNode
+  /** For a terse visible label (a grid of "r w x"), the name a screen reader should hear instead. */
+  'aria-label'?: string
 }) {
   return (
     <label className="flex min-h-11 shrink-0 cursor-pointer select-none items-center gap-1.5 whitespace-nowrap md:min-h-7">
       <input
         type="checkbox"
         checked={checked}
+        aria-label={ariaLabel}
         onChange={(e) => onChange(e.target.checked)}
         // The tick is drawn by .toggle-box in global.css.
         className="toggle-box size-3.5 appearance-none rounded-[3px] border border-border bg-bg

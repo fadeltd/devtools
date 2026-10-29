@@ -1,4 +1,5 @@
-import { useDeferredValue, useMemo } from 'react'
+import { useDeferredValue, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import { ArrowLeftRight, ChevronDown, ChevronRight } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { TwoPane } from '@/components/layout/TwoPane'
@@ -44,8 +45,17 @@ const VARIANT_LABELS: Record<Variant, { label: string; title: string }> = {
   form: { label: 'Form (+ for space)', title: 'application/x-www-form-urlencoded, as URLSearchParams writes it' },
 }
 
-/** Enough for any real URL; past this the table is a scroll you will not read. */
-const ROW_CAP = 300
+// One grid for the header and every row, so the columns line up without a
+// <table>: virtual rows are absolutely positioned, which a table row cannot be.
+const PARAM_GRID = 'grid grid-cols-[30%_minmax(0,1fr)_auto]'
+
+/**
+ * A one-line row on desktop: 28px Copy button plus padding and the hairline.
+ * Rows that wrap, show a raw form or a badge are taller, and phones use 44px
+ * buttons; the virtualiser measures every row it renders, so this only shapes
+ * the scrollbar before then.
+ */
+const PARAM_ROW_ESTIMATE = 37
 
 export default function UrlTool() {
   useToolUsageTracker('url')
@@ -188,9 +198,21 @@ function ParamsPanel({
   onToggle: () => void
 }) {
   const { rows } = parsed
-  const shown = rows.length > ROW_CAP ? rows.slice(0, ROW_CAP) : rows
   const normalized = useMemo(() => buildQuery(rows), [rows])
   const Chevron = open ? ChevronDown : ChevronRight
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  const lead = (
+    <>
+      {parsed.kind === 'url' && <UrlParts parts={parsed.parts} />}
+      {parsed.kind === 'query' && parsed.hash !== '' && (
+        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-b border-border px-3 py-2 text-[12px]">
+          <dt className="text-muted">Fragment</dt>
+          <dd className="break-all font-mono">{parsed.hash}</dd>
+        </dl>
+      )}
+    </>
+  )
 
   return (
     <section className="flex max-h-[45dvh] shrink-0 flex-col border-t border-border bg-surface">
@@ -211,44 +233,105 @@ function ParamsPanel({
       </div>
 
       {open && (
-        <div className="min-h-0 flex-1 overflow-auto border-t border-border bg-bg scroll-thin">
-          {parsed.kind === 'url' && <UrlParts parts={parsed.parts} />}
-          {parsed.kind === 'query' && parsed.hash !== '' && (
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 border-b border-border px-3 py-2 text-[12px]">
-              <dt className="text-muted">Fragment</dt>
-              <dd className="break-all font-mono">{parsed.hash}</dd>
-            </dl>
-          )}
+        // `relative` makes this the offsetParent, so the list can read its own offset below the URL parts.
+        <div ref={scrollRef} className="relative min-h-0 flex-1 overflow-auto border-t border-border bg-bg scroll-thin">
           {rows.length === 0 ? (
-            <p className="px-3 py-2 text-[12px] text-faint">No query parameters.</p>
+            <>
+              {lead}
+              <p className="px-3 py-2 text-[12px] text-faint">No query parameters.</p>
+            </>
           ) : (
-            <table className="w-full border-collapse font-mono text-[12px] leading-4.5">
-              <thead>
-                <tr className="border-b border-border text-left font-sans text-[11px] text-faint">
-                  <th className="w-[30%] px-3 py-1 font-medium">Key</th>
-                  <th className="px-3 py-1 font-medium">Value</th>
-                  <th className="w-px px-3 py-1">
-                    <span className="sr-only">Copy</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.map((row) => (
-                  // Keys repeat legally; the offset in the query never does.
-                  <ParamRow key={row.offset} row={row} />
-                ))}
-              </tbody>
-            </table>
-          )}
-          {rows.length > ROW_CAP && (
-            <p className="border-t border-border px-3 py-1.5 text-[12px] text-faint">
-              Showing the first {formatCount(ROW_CAP)} of {formatCount(rows.length)} parameters. Copy normalized
-              includes all of them.
-            </p>
+            <ParamList lead={lead} rows={rows} scrollRef={scrollRef} />
           )}
         </div>
       )}
     </section>
+  )
+}
+
+/**
+ * Every parameter, virtualised: a pasted tracking URL or a generated query can
+ * carry thousands, and each row holds a Copy button. The URL parts above share
+ * the scroll, so the list tells the virtualiser how far down it starts.
+ */
+function ParamList({
+  lead,
+  rows,
+  scrollRef,
+}: {
+  lead: ReactNode
+  rows: QueryRow[]
+  scrollRef: RefObject<HTMLDivElement | null>
+}) {
+  const leadRef = useRef<HTMLDivElement>(null)
+  const headerRef = useRef<HTMLDivElement>(null)
+  const listRef = useRef<HTMLDivElement>(null)
+  const [scrollMargin, setScrollMargin] = useState(0)
+
+  // The parts above grow and shrink with the URL and with the pane width, as
+  // long values wrap. Watching them is what keeps the offset true; reading it
+  // once would put rows under the header after the first edit.
+  useLayoutEffect(() => {
+    const leadEl = leadRef.current
+    const headerEl = headerRef.current
+    if (!leadEl || !headerEl) return
+    const observer = new ResizeObserver(() => setScrollMargin(listRef.current?.offsetTop ?? 0))
+    observer.observe(leadEl)
+    observer.observe(headerEl)
+    return () => observer.disconnect()
+  }, [])
+
+  // The rule guards React Compiler memoisation, and this build does not run the
+  // compiler. TanStack Virtual is the documented exception it flags.
+  // oxlint-disable-next-line react/incompatible-library
+  const virtualizer = useVirtualizer({
+    count: rows.length,
+    getScrollElement: () => scrollRef.current,
+    estimateSize: () => PARAM_ROW_ESTIMATE,
+    // Keys repeat legally; the offset in the query never does. Keying the
+    // measurement cache by it keeps a measured height with its row.
+    getItemKey: (i) => rows[i]!.offset,
+    scrollMargin,
+    overscan: 10,
+  })
+
+  return (
+    <>
+      <div ref={leadRef}>{lead}</div>
+      <div
+        role="table"
+        aria-label="Query parameters"
+        aria-rowcount={rows.length + 1}
+        className="font-mono text-[12px] leading-4.5"
+      >
+        <div
+          ref={headerRef}
+          role="row"
+          className={`${PARAM_GRID} sticky top-0 z-10 border-b border-border bg-surface text-left font-sans text-[11px] text-faint`}
+        >
+          <span role="columnheader" className="px-3 py-1 font-medium">
+            Key
+          </span>
+          <span role="columnheader" className="px-3 py-1 font-medium">
+            Value
+          </span>
+          <span role="columnheader" className="px-3 py-1">
+            <span className="sr-only">Copy</span>
+          </span>
+        </div>
+        <div ref={listRef} className="relative w-full" style={{ height: virtualizer.getTotalSize() }}>
+          {virtualizer.getVirtualItems().map((item) => (
+            <ParamRow
+              key={item.key}
+              row={rows[item.index]!}
+              index={item.index}
+              measureRef={virtualizer.measureElement}
+              top={item.start - scrollMargin}
+            />
+          ))}
+        </div>
+      </div>
+    </>
   )
 }
 
@@ -286,14 +369,31 @@ function UrlParts({ parts }: { parts: Extract<ParsedInput, { kind: 'url' }>['par
   )
 }
 
-function ParamRow({ row }: { row: QueryRow }) {
+function ParamRow({
+  row,
+  index,
+  measureRef,
+  top,
+}: {
+  row: QueryRow
+  index: number
+  measureRef: (node: Element | null) => void
+  top: number
+}) {
   return (
-    <tr className="border-b border-border align-top last:border-b-0">
-      <td className="break-all px-3 py-1.5 text-muted">
+    <div
+      ref={measureRef}
+      data-index={index}
+      role="row"
+      aria-rowindex={index + 2}
+      className={`${PARAM_GRID} absolute left-0 top-0 w-full items-start border-b border-border`}
+      style={{ transform: `translateY(${top}px)` }}
+    >
+      <span role="cell" className="break-all px-3 py-1.5 text-muted">
         {row.key === '' ? <span className="font-sans text-faint">(empty key)</span> : row.key}
         {row.rawKey !== row.key && <span className="block text-[11px] text-faint">{row.rawKey}</span>}
-      </td>
-      <td className="break-all px-3 py-1.5">
+      </span>
+      <span role="cell" className="break-all px-3 py-1.5">
         {row.value === null ? (
           <span className="font-sans text-faint">flag, no “=”</span>
         ) : row.value === '' ? (
@@ -309,10 +409,10 @@ function ParamRow({ row }: { row: QueryRow }) {
             malformed %, kept as-is
           </Badge>
         )}
-      </td>
-      <td className="px-3 py-1">
+      </span>
+      <span role="cell" className="px-3 py-1">
         <CopyButton value={row.value ?? ''} />
-      </td>
-    </tr>
+      </span>
+    </div>
   )
 }

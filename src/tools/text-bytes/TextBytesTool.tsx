@@ -1,5 +1,5 @@
 import { useDeferredValue, useMemo } from 'react'
-import { ArrowLeftRight } from 'lucide-react'
+import { ArrowLeftRight, Download } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { TwoPane } from '@/components/layout/TwoPane'
 import { Badge } from '@/components/ui/Badge'
@@ -12,6 +12,8 @@ import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatCount } from '@/lib/util/bytes'
+import { downloadBlob } from '@/lib/util/download'
+import { headOf, INLINE_MAX_BYTES } from '@fadeltd/devtools-core/base64'
 import {
   decodeText,
   encodeText,
@@ -81,6 +83,15 @@ interface Outcome {
   /** The format bytes were read as, for Swap. */
   format: ByteFormat | null
 }
+
+/**
+ * How much output goes into the textarea once it passes INLINE_MAX_BYTES.
+ * Binary is about 9 characters per input byte, so a few-MB paste would put
+ * tens of MB in the DOM and freeze layout; Copy and Download still get it all.
+ * 64K rather than base64's 2K head: this is text people read and scroll, and
+ * a 2K slice of binary is barely four lines of a wide pane.
+ */
+const PREVIEW_CHARS = 64 * 1024
 
 const plural = (n: number, one: string) => `${formatCount(n)} ${one}${n === 1 ? '' : 's'}`
 
@@ -159,11 +170,21 @@ export default function TextBytesTool() {
   const deferred = useDeferredValue(state)
   const outcome = useMemo(() => compute(deferred), [deferred])
   const encoding = state.direction === 'encode'
+  // Characters, not bytes: what the textarea pays for is string length, and
+  // the encoded output is ASCII anyway.
+  const capped = outcome.output.length > INLINE_MAX_BYTES
+  const shown = useMemo(
+    () => (capped ? headOf(outcome.output, PREVIEW_CHARS).head : outcome.output),
+    [capped, outcome.output],
+  )
   // Only offer the fallback choice when a fallback is on screen.
   const showFallback = !encoding && outcome.fallback !== null
   const set = <K extends keyof State>(key: K, value: State[K]) => setState((p) => ({ ...p, [key]: value }))
 
   function swap() {
+    // Swapping feeds the output back in as input, which would put the whole
+    // capped output in the input textarea: exactly what the cap prevents.
+    if (capped) return
     setState((p) => {
       const usable = outcome.error === null && outcome.fallback === null && outcome.output !== ''
       if (p.direction === 'encode') {
@@ -200,6 +221,11 @@ export default function TextBytesTool() {
   ])
 
   const hex = state.format === 'hex'
+
+  function download() {
+    const name = outcome.format === null ? 'output' : FORMAT_LABELS[outcome.format].toLowerCase()
+    downloadBlob(new Blob([outcome.output], { type: 'text/plain' }), encoding ? `bytes.${name}.txt` : 'text.txt')
+  }
 
   return (
     <ToolFrame
@@ -284,11 +310,19 @@ export default function TextBytesTool() {
             </>
           )}
 
-          <Button onClick={swap} title="Swap direction (⌘⇧S)">
+          <Button
+            onClick={swap}
+            disabled={capped}
+            title={capped ? 'The output is too large to swap back in' : 'Swap direction (⌘⇧S)'}
+          >
             <ArrowLeftRight size={14} aria-hidden />
             Swap
           </Button>
           <CopyButton value={outcome.output} />
+          <Button onClick={download} disabled={outcome.output === ''} title="Download the whole output as a .txt">
+            <Download size={14} aria-hidden />
+            Download
+          </Button>
           <Button variant="ghost" onClick={reset}>
             Clear
           </Button>
@@ -320,7 +354,13 @@ export default function TextBytesTool() {
             {outcome.error !== null ? (
               <div className="flex-1 overflow-auto p-3 font-mono text-[13px] text-del scroll-thin">{outcome.error}</div>
             ) : (
-              <CodeArea value={outcome.output} readOnly placeholder="Output appears here" />
+              <CodeArea value={shown} readOnly placeholder="Output appears here" />
+            )}
+            {capped && (
+              <p className="shrink-0 border-t border-border px-3 py-1.5 text-[12px] text-warn">
+                Showing the first {formatCount(shown.length)} of {formatCount(outcome.output.length)} characters. Copy
+                and Download include all of it.
+              </p>
             )}
             {(outcome.stats !== null || outcome.notes.length > 0) && (
               <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">

@@ -1,5 +1,5 @@
 import { useDeferredValue, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { CircleX, TriangleAlert } from 'lucide-react'
+import { CircleCheck, CircleX, TriangleAlert } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { TwoPane } from '@/components/layout/TwoPane'
 import { Badge } from '@/components/ui/Badge'
@@ -13,25 +13,55 @@ import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatCount } from '@/lib/util/bytes'
 import {
+  detectKeyFormat,
   exampleToken,
   parseJwt,
+  verifyJwt,
   withClaims,
   type ClaimRow,
+  type KeyFormat,
+  type SecretEncoding,
   type JsonSegment,
   type JwtIssue,
   type JwtResult,
   type TokenPart,
   type ValidityStatus,
+  type VerifyResult,
 } from '@fadeltd/devtools-core/jwt'
 
 interface State {
   token: string
   skew: number
+  key: string
+  keyEncoding: SecretEncoding
 }
 
 // The registry declares store 'none', so useToolState keeps this in memory
-// only. The token is a bearer credential and must never reach storage or a URL.
-const INITIAL: State = { token: '', skew: 0 }
+// only. The token is a bearer credential and the key may be an HS secret:
+// neither may reach storage or a URL.
+const INITIAL: State = { token: '', skew: 0, key: '', keyEncoding: 'text' }
+
+const KEY_FORMATS: Record<KeyFormat, string> = {
+  jwk: 'JWK',
+  jwks: 'JWKS',
+  pem: 'PEM',
+  secret: 'Secret',
+}
+
+const SECRET_ENCODINGS: Record<SecretEncoding, string> = {
+  text: 'Text (UTF-8)',
+  base64: 'Base64',
+  base64url: 'Base64url',
+}
+
+/** 'checking' covers the gap between an edit and its async result, so a stale verdict is never shown. */
+type Verdict = VerifyResult | 'checking' | null
+
+const VERDICT: Record<VerifyResult['status'], { label: string; tone: 'add' | 'warn' | 'del'; title: string }> = {
+  valid: { label: 'Signature valid', tone: 'add', title: 'Signed by this key. Says nothing about expiry, which is the other badge.' },
+  invalid: { label: 'Signature invalid', tone: 'del', title: 'A verifier must reject this token with this key.' },
+  error: { label: 'Signature not checked', tone: 'warn', title: 'The token or the key could not be used to check it.' },
+}
 
 const SKEWS = [
   { value: 0, label: 'No leeway' },
@@ -78,6 +108,28 @@ export default function JwtTool() {
   )
 
   const payloadText = result.payload?.pretty ?? ''
+
+  // Verification is async (WebCrypto), so each result is stored with the
+  // inputs it answers, and anything else reads as 'checking'.
+  const key = useDeferredValue(state.key)
+  const encoding = state.keyEncoding
+  const wantsCheck = parsed.kind === 'jws' && key.trim() !== ''
+  const [checked, setChecked] = useState<{ token: string; key: string; encoding: SecretEncoding; result: VerifyResult } | null>(null)
+  useEffect(() => {
+    if (!wantsCheck) return
+    let cancelled = false
+    void verifyJwt(token, key, { secretEncoding: encoding }).then((r) => {
+      if (!cancelled) setChecked({ token, key, encoding, result: r })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [wantsCheck, token, key, encoding])
+  const verdict: Verdict = !wantsCheck
+    ? null
+    : checked !== null && checked.token === token && checked.key === key && checked.encoding === encoding
+      ? checked.result
+      : 'checking'
 
   useShortcuts([
     {
@@ -142,7 +194,19 @@ export default function JwtTool() {
                 never saved or sent anywhere.
               </p>
             ) : (
-              <Decoded result={result} />
+              <Decoded
+                result={result}
+                verdict={verdict}
+                verify={
+                  <VerifyPanel
+                    keyText={state.key}
+                    encoding={state.keyEncoding}
+                    verdict={verdict}
+                    onKey={(k) => setState((p) => ({ ...p, key: k }))}
+                    onEncoding={(e) => setState((p) => ({ ...p, keyEncoding: e }))}
+                  />
+                }
+              />
             )}
           </div>
         }
@@ -151,7 +215,7 @@ export default function JwtTool() {
   )
 }
 
-function Decoded({ result }: { result: JwtResult }) {
+function Decoded({ result, verdict, verify }: { result: JwtResult; verdict: Verdict; verify: ReactNode }) {
   const { status, kind, header, payload, signature, encrypted, claims, errors, warnings } = result
   const alg = header?.ok === true ? (header.value as Record<string, unknown> | null)?.['alg'] : undefined
 
@@ -165,11 +229,7 @@ function Decoded({ result }: { result: JwtResult }) {
         )}
         {kind !== null && <Badge>{kind === 'jws' ? 'JWS · signed' : 'JWE · encrypted'}</Badge>}
         {typeof alg === 'string' && <Badge>{alg.length > 24 ? `${alg.slice(0, 24)}…` : alg}</Badge>}
-        {kind === 'jws' && (
-          <Badge title="This tool holds no key, so it cannot check the signature.">
-            Signature not verified
-          </Badge>
-        )}
+        {kind === 'jws' && <VerdictBadge verdict={verdict} />}
       </div>
 
       {(errors.length > 0 || warnings.length > 0) && (
@@ -222,7 +282,14 @@ function Decoded({ result }: { result: JwtResult }) {
           action={<CopyButton value={signature.base64url} label="Copy" />}
         >
           <p className="px-3 pb-1 font-mono text-[12px] text-muted">
-            {formatCount(signature.bytes)} bytes · <span className="text-warn">not verified</span>
+            {formatCount(signature.bytes)} bytes ·{' '}
+            {verdict !== null && verdict !== 'checking' && verdict.status === 'valid' ? (
+              <span className="text-add">verified</span>
+            ) : verdict !== null && verdict !== 'checking' && verdict.status === 'invalid' ? (
+              <span className="text-del">invalid</span>
+            ) : (
+              <span className="text-warn">not verified</span>
+            )}
           </p>
           {signature.base64url !== '' && (
             <p className="mx-3 mb-3 max-h-24 overflow-y-auto break-all rounded-[4px] border border-border bg-bg p-2 font-mono text-[12px] leading-4.5 text-muted scroll-thin">
@@ -231,7 +298,105 @@ function Decoded({ result }: { result: JwtResult }) {
           )}
         </Section>
       )}
+
+      {kind === 'jws' && verify}
     </>
+  )
+}
+
+function VerdictBadge({ verdict }: { verdict: Verdict }) {
+  if (verdict === null) {
+    return <Badge title="Paste the key under Verify signature to check it.">Signature not verified</Badge>
+  }
+  if (verdict === 'checking') return <Badge>Checking signature…</Badge>
+  const v = VERDICT[verdict.status]
+  return (
+    <Badge tone={v.tone} title={v.title}>
+      {v.label}
+    </Badge>
+  )
+}
+
+function VerifyPanel({
+  keyText,
+  encoding,
+  verdict,
+  onKey,
+  onEncoding,
+}: {
+  keyText: string
+  encoding: SecretEncoding
+  verdict: Verdict
+  onKey: (key: string) => void
+  onEncoding: (encoding: SecretEncoding) => void
+}) {
+  const format = detectKeyFormat(keyText)
+  // A URL is read as an HS secret, which can only fail; say why instead.
+  const isUrl = format === 'secret' && /^\s*https?:\/\//i.test(keyText)
+
+  return (
+    <Section
+      title="Verify signature"
+      action={format !== null && <Badge>{KEY_FORMATS[format]}</Badge>}
+    >
+      <div className="border-y border-border">
+        <CodeArea
+          value={keyText}
+          onChange={(e) => onKey(e.target.value)}
+          rows={4}
+          placeholder={'Public key as PEM or JWK, a JWKS {"keys": […]}, or the HS256 secret'}
+          aria-label="Verification key"
+          className="break-all"
+        />
+      </div>
+      <div className="space-y-2 px-3 py-2">
+        {format === 'secret' && (
+          <label className="flex items-center gap-2">
+            <span className="text-[12px] text-muted">Secret is</span>
+            <Select value={encoding} onChange={(e) => onEncoding(e.target.value as SecretEncoding)}>
+              {Object.entries(SECRET_ENCODINGS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </label>
+        )}
+        {isUrl && (
+          <p className="text-[12px] leading-snug text-warn">
+            That is a URL. Open it in a new tab and paste the JSON it returns here.
+          </p>
+        )}
+        {verdict !== null && verdict !== 'checking' && <VerdictLine result={verdict} />}
+        <p className="text-[11px] leading-snug text-faint">
+          Paste the key; fetching a JWKS URL isn’t possible from this site, which makes no network
+          requests. The key stays in this tab and is never saved.
+        </p>
+      </div>
+    </Section>
+  )
+}
+
+function VerdictLine({ result }: { result: VerifyResult }) {
+  const tone = result.status === 'valid' ? 'text-add' : result.status === 'invalid' ? 'text-del' : 'text-warn'
+  const Icon = result.status === 'valid' ? CircleCheck : result.status === 'invalid' ? CircleX : TriangleAlert
+  const matched =
+    result.keyId !== undefined
+      ? `kid ${JSON.stringify(result.keyId)}`
+      : result.keyIndex !== undefined
+        ? `key ${result.keyIndex + 1} in the set`
+        : null
+  return (
+    <div className="space-y-0.5 text-[12px] leading-snug">
+      <p className={`flex gap-1.5 ${tone}`}>
+        <Icon size={13} className="mt-0.5 shrink-0" aria-hidden />
+        <span className="min-w-0 wrap-break-word">
+          {VERDICT[result.status].label}
+          {matched !== null && <span className="font-mono"> · {matched}</span>}
+        </span>
+      </p>
+      {result.reason !== undefined && <p className="wrap-break-word text-muted">{result.reason}</p>}
+    </div>
   )
 }
 
