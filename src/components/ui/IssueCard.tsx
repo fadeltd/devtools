@@ -7,7 +7,7 @@ import { AlertTriangle } from 'lucide-react'
 export interface Issue {
   message: string
   line: number | null
-  column: number
+  column: number | null
   hint: string | null
   snippet: {
     lines: ReadonlyArray<{ number: number; text: string }>
@@ -29,7 +29,8 @@ export function IssueCard({ issue }: { issue: Issue }) {
           <div className="text-[13px] font-medium wrap-break-word text-fg">{issue.message}</div>
           {issue.line !== null && (
             <div className="font-mono text-[11px] text-faint">
-              line {issue.line}, column {issue.column}
+              line {issue.line}
+              {issue.column !== null && `, column ${issue.column}`}
             </div>
           )}
         </div>

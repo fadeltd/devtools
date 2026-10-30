@@ -22,6 +22,7 @@ import {
   type QueryRow,
   type Variant,
 } from '@fadeltd/devtools-core/url'
+import { hasLongLine } from '@fadeltd/devtools-core/text'
 
 interface State {
   input: string
@@ -99,6 +100,8 @@ export default function UrlTool() {
 
   const input = deferred.input
   const { output, error } = result
+  const inputNoWrap = useMemo(() => hasLongLine(state.input), [state.input])
+  const outputNoWrap = useMemo(() => hasLongLine(output), [output])
 
   return (
     <ToolFrame
@@ -147,6 +150,7 @@ export default function UrlTool() {
               <CodeArea
                 value={state.input}
                 onChange={(e) => setState((p) => ({ ...p, input: e.target.value }))}
+                wrap={inputNoWrap ? 'off' : undefined}
                 placeholder={
                   state.mode === 'encode'
                     ? 'Paste text or a URL to percent-encode…'
@@ -156,7 +160,12 @@ export default function UrlTool() {
             }
             right={
               <div className="flex min-h-0 w-full flex-col border-t border-border md:border-t-0 md:border-l">
-                <CodeArea value={output} readOnly placeholder="Output appears here" />
+                <CodeArea
+                  value={output}
+                  readOnly
+                  wrap={outputNoWrap ? 'off' : undefined}
+                  placeholder="Output appears here"
+                />
                 {(input !== '' || error !== null) && (
                   <div className="flex shrink-0 flex-col gap-1 border-t border-border px-3 py-1.5 text-[12px] leading-snug">
                     {error !== null && <p className="text-del">{error.message}</p>}
