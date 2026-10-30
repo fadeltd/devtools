@@ -1,5 +1,5 @@
-import { parseTree, type ParseError } from 'jsonc-parser'
-import { buildLineIndex, lineText, offsetToLineCol, visualColumn } from '../text/offsets.ts'
+import { visit, type ParseError } from 'jsonc-parser'
+import { buildLineIndex, offsetToLineCol, visualColumn } from '../text/offsets.ts'
 
 export interface JsonIssue {
   severity: 'error' | 'warning'
@@ -26,7 +26,23 @@ export interface Analysis {
   flavor: Flavor
   /** Set when the input parses line-by-line, i.e. it is probably NDJSON. */
   ndjson: { records: number } | null
+  /** True when there were more problems than the MAX_ISSUES reported in `issues`. */
+  moreIssues: boolean
 }
+
+/**
+ * At most this many issues are reported. Pasted prose yields one parser error
+ * per word -- hundreds of thousands on a few MB -- and nobody reads past the
+ * first screenful anyway.
+ */
+export const MAX_ISSUES = 100
+
+/**
+ * Snippet lines longer than this are cut to a window around the caret. A
+ * minified document is one line, and a 20 MB line has no business in the DOM.
+ */
+export const SNIPPET_MAX_LINE = 240
+const SNIPPET_WINDOW = 120
 
 /**
  * Human messages for jsonc-parser's numeric codes.
@@ -156,6 +172,19 @@ function trailingCommaBefore(text: string, offset: number): number | null {
   return null
 }
 
+/** Start and end (excluding the line break) of a 1-based line. */
+function lineBounds(
+  text: string,
+  index: ReturnType<typeof buildLineIndex>,
+  line: number,
+): { start: number; end: number } {
+  const start = index.starts[line - 1] ?? 0
+  let end = index.starts[line] ?? text.length
+  if (end > start && text[end - 1] === '\n') end--
+  if (end > start && text[end - 1] === '\r') end--
+  return { start, end }
+}
+
 function buildIssue(
   text: string,
   err: ParseError,
@@ -184,8 +213,33 @@ function buildIssue(
 
   const from = Math.max(1, line - CONTEXT_LINES)
   const to = Math.min(index.lineCount, line + CONTEXT_LINES)
-  const lines: Array<{ number: number; text: string }> = []
-  for (let n = from; n <= to; n++) lines.push({ number: n, text: lineText(text, index, n) })
+  const bounds: Array<{ start: number; end: number }> = []
+  let longest = 0
+  for (let n = from; n <= to; n++) {
+    const b = lineBounds(text, index, n)
+    bounds.push(b)
+    longest = Math.max(longest, b.end - b.start)
+  }
+
+  // Short lines are shown whole. Otherwise every line is cut to the same
+  // column window around the caret, so the context still lines up -- and only
+  // the window is ever sliced, never the whole line.
+  const windowed = longest > SNIPPET_MAX_LINE
+  const winStart = windowed ? Math.max(0, column - 1 - SNIPPET_WINDOW / 2) : 0
+  const lines = bounds.map((b, i) => {
+    const number = from + i
+    if (!windowed) return { number, text: text.slice(b.start, b.end) }
+    const length = b.end - b.start
+    const sliceEnd = Math.min(length, winStart + SNIPPET_WINDOW)
+    const body = length > winStart ? text.slice(b.start + winStart, b.start + sliceEnd) : ''
+    const before = winStart > 0 && length > 0 ? '…' : ''
+    const after = length > sliceEnd ? '…' : ''
+    return { number, text: before + body + after }
+  })
+
+  const caret = lines[line - from]!.text
+  // Column within the shown text: shifted by the window and its leading '…'.
+  const shownColumn = column - winStart + (windowed && winStart > 0 ? 1 : 0)
 
   return {
     severity: 'error',
@@ -200,7 +254,7 @@ function buildIssue(
       lines,
       caretLine: line,
       // Tab-aware, so the caret lands under the real character.
-      caretColumn: visualColumn(lineText(text, index, line), column, tabWidth),
+      caretColumn: visualColumn(caret, shownColumn, tabWidth),
     },
   }
 }
@@ -226,23 +280,36 @@ export interface AnalyzeOptions {
 }
 
 export function analyze(text: string, o: AnalyzeOptions): Analysis {
-  if (text.trim() === '') return { issues: [], flavor: 'empty', ndjson: null }
+  if (text.trim() === '') return { issues: [], flavor: 'empty', ndjson: null, moreIssues: false }
 
   // Fast path: native JSON.parse. On 21MB this is ~170ms, so there is no
   // reason to reach for anything cleverer when the input is valid.
   try {
     const value = JSON.parse(text) as unknown
-    return { value, issues: [], flavor: 'json', ndjson: null }
+    return { value, issues: [], flavor: 'json', ndjson: null, moreIssues: false }
   } catch {
     /* fall through to the reporting parser */
   }
 
+  // A visitor, not parseTree: only the errors are needed, and building the
+  // node tree for a 20 MB document costs twice as much for nothing. Errors past
+  // the cap are counted, never kept -- prose yields one per word.
   const errors: ParseError[] = []
-  const tree = parseTree(text, errors, {
-    allowTrailingComma: o.lenient,
-    disallowComments: !o.lenient,
-    allowEmptyContent: false,
-  })
+  let moreIssues = false
+  visit(
+    text,
+    {
+      onError: (error, offset, length) => {
+        if (errors.length < MAX_ISSUES * 4) errors.push({ error, offset, length })
+        else moreIssues = true
+      },
+    },
+    {
+      allowTrailingComma: o.lenient,
+      disallowComments: !o.lenient,
+      allowEmptyContent: false,
+    },
+  )
 
   const index = buildLineIndex(text)
 
@@ -253,6 +320,10 @@ export function analyze(text: string, o: AnalyzeOptions): Analysis {
   const seen = new Set<number>()
   const issues: JsonIssue[] = []
   for (const err of errors) {
+    if (issues.length === MAX_ISSUES) {
+      moreIssues = true
+      break
+    }
     const issue = buildIssue(text, err, index, o.tabWidth ?? 2)
     if (seen.has(issue.offset)) continue
     seen.add(issue.offset)
@@ -264,10 +335,10 @@ export function analyze(text: string, o: AnalyzeOptions): Analysis {
   // In lenient mode the input may be perfectly good JSONC -- comments and
   // trailing commas produce no errors at all under these options -- so always
   // try to recover a value here, not only when errors were reported.
-  if (o.lenient && tree !== undefined) {
+  if (o.lenient) {
     try {
       const value = JSON.parse(stripJsonc(text)) as unknown
-      return { value, issues, flavor: 'jsonc', ndjson }
+      return { value, issues, flavor: 'jsonc', ndjson, moreIssues }
     } catch {
       /* genuinely not recoverable; fall through to the invalid result */
     }
@@ -277,56 +348,66 @@ export function analyze(text: string, o: AnalyzeOptions): Analysis {
     issues,
     flavor: ndjson ? 'ndjson' : 'invalid',
     ndjson,
+    moreIssues,
   }
 }
 
 /**
  * Remove comments and trailing commas so the result is strict JSON.
  * String-aware, so a `//` inside a string value survives.
+ *
+ * Kept text is copied in slices between removals, not a character at a time:
+ * per-character concatenation took over a second on 20 MB.
  */
 export function stripJsonc(text: string): string {
-  let out = ''
+  const out: string[] = []
+  // Start of the text not yet copied to `out`.
+  let kept = 0
   let i = 0
-  let inString = false
+  const n = text.length
 
-  while (i < text.length) {
+  const drop = (from: number, to: number) => {
+    if (from > kept) out.push(text.slice(kept, from))
+    kept = Math.min(to, n)
+  }
+
+  while (i < n) {
     const ch = text[i]!
 
-    if (inString) {
-      out += ch
-      if (ch === '\\') {
-        out += text[i + 1] ?? ''
-        i += 2
-        continue
-      }
-      if (ch === '"') inString = false
-      i++
-      continue
-    }
-
     if (ch === '"') {
-      inString = true
-      out += ch
       i++
+      while (i < n) {
+        const c = text.charCodeAt(i)
+        if (c === 0x5c /* backslash */) {
+          i += 2
+        } else {
+          i++
+          if (c === 0x22 /* quote */) break
+        }
+      }
       continue
     }
 
     if (ch === '/' && text[i + 1] === '/') {
-      while (i < text.length && text[i] !== '\n') i++
+      let j = text.indexOf('\n', i)
+      if (j === -1) j = n
+      drop(i, j)
+      i = j
       continue
     }
 
     if (ch === '/' && text[i + 1] === '*') {
-      i += 2
-      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++
-      i += 2
+      const close = text.indexOf('*/', i + 2)
+      const j = close === -1 ? n : close + 2
+      drop(i, j)
+      i = j
       continue
     }
 
     if (ch === ',') {
       // Look ahead past whitespace and comments for a closing bracket.
       let j = i + 1
-      while (j < text.length) {
+      while (j < n) {
         const c = text[j]!
         if (/\s/.test(c)) {
           j++
@@ -340,15 +421,12 @@ export function stripJsonc(text: string): string {
           break
         }
       }
-      if (text[j] === '}' || text[j] === ']') {
-        i++ // drop the trailing comma
-        continue
-      }
+      if (text[j] === '}' || text[j] === ']') drop(i, i + 1) // the trailing comma
     }
 
-    out += ch
     i++
   }
 
-  return out
+  if (kept < n) out.push(text.slice(kept))
+  return out.join('')
 }

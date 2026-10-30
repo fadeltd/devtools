@@ -1,6 +1,16 @@
 import { useDeferredValue, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { AlertTriangle, ArrowUp, Braces, CheckCircle2, GitCompare, ListFilter, Wand2, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowUp,
+  Braces,
+  CheckCircle2,
+  Download,
+  GitCompare,
+  ListFilter,
+  Wand2,
+  X,
+} from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { TwoPane } from '@/components/layout/TwoPane'
 import { Badge } from '@/components/ui/Badge'
@@ -15,8 +25,12 @@ import { useToolUsageTracker } from '@/lib/prefs'
 import { copyText } from '@/lib/util/clipboard'
 import { formatBytes, formatCount } from '@/lib/util/bytes'
 import { cn } from '@/lib/util/cn'
+import { downloadBlob } from '@/lib/util/download'
 import {
   analyze,
+  type Analysis,
+  assessJsonSize,
+  outputHead,
   stripJsonc,
   type JsonIssue,
   embeddedFields,
@@ -77,6 +91,24 @@ const INITIAL: State = {
   expandPointers: [],
   view: 'text',
   filter: '',
+}
+
+/** What the tool shows for input it refuses to parse: nothing at all. */
+const NOT_ANALYSED: Analysis = { issues: [], flavor: 'empty', ndjson: null, moreIssues: false }
+
+/**
+ * Output longer than this never goes into the textarea whole: a 32 MB string
+ * there freezes layout and makes select-all useless. Only the head is shown;
+ * Copy and Download still get all of it.
+ */
+const OUTPUT_INLINE_MAX = 2 * 1024 * 1024
+const OUTPUT_HEAD_CHARS = 100_000
+
+const DOWNLOAD_NAMES: Record<Mode, string> = {
+  format: 'formatted.json',
+  minify: 'minified.json',
+  escape: 'escaped.txt',
+  unescape: 'unescaped.txt',
 }
 
 function IssueCard({ issue }: { issue: JsonIssue }) {
@@ -269,19 +301,33 @@ export default function JsonTool() {
   const { state, setState, reset } = useToolState<State>('json', INITIAL)
 
   const deferred = useDeferredValue(state)
+
+  // Size first, on the deferred text: one pass, no 20 MB encode per keystroke.
+  // Above 1 MB the expensive extras are off; above 50 MB nothing is parsed.
+  const size = useMemo(() => assessJsonSize(deferred.text), [deferred.text])
+  const large = size.tier === 'large'
+  const refused = size.tier === 'refuse'
+
   const analysis = useMemo(
-    () => analyze(deferred.text, { lenient: deferred.lenient, tabWidth: 2 }),
-    [deferred.text, deferred.lenient],
+    () =>
+      refused ? NOT_ANALYSED : analyze(deferred.text, { lenient: deferred.lenient, tabWidth: 2 }),
+    [refused, deferred.text, deferred.lenient],
   )
 
-  const numberIssues = useMemo(() => findNumberIssues(deferred.text), [deferred.text])
+  // Kept in the large tier: it is a regex scan that stops at 500 hits (~50 ms
+  // on 20 MB), and it is what warns that the output rounds a number.
+  const numberIssues = useMemo(
+    () => (refused ? [] : findNumberIssues(deferred.text)),
+    [refused, deferred.text],
+  )
   const precisionLoss = numberIssues.filter((n) => n.kind === 'precision')
   const reformatted = numberIssues.filter((n) => n.kind === 'reformatted')
 
   // Lossless mode: when the number gate trips, re-parse keeping those literals
   // as their source text, so format/minify/sort round-trip them byte-exactly.
   // Nothing in this tool does arithmetic on values, so nothing else changes.
-  const lossless = losslessSupported && numberIssues.length > 0
+  // Not for large input: the reviver runs once per value (~620 ms on 20 MB).
+  const lossless = losslessSupported && numberIssues.length > 0 && !large
   const parsed = useMemo(() => {
     if (analysis.value === undefined || !lossless) return analysis.value
     try {
@@ -298,24 +344,31 @@ export default function JsonTool() {
   // Structured logs put their payload in a string, often double-encoded. Finding
   // those is the difference between reading this document here and copying a
   // field into another tab twice.
+  // Not for large input: the scan walks every string in the document.
   const fields = useMemo(
-    () => (parsed === undefined ? [] : embeddedFields(findEmbeddedJson(parsed, embeddedOptions))),
-    [parsed, embeddedOptions],
+    () =>
+      parsed === undefined || large
+        ? []
+        : embeddedFields(findEmbeddedJson(parsed, embeddedOptions)),
+    [parsed, large, embeddedOptions],
   )
 
   // Expansion is a view over the parsed value; the source text is untouched,
   // so toggling it off restores the original exactly. Sorting happens here too,
-  // so the text output and the tree show the same document.
+  // so the text output and the tree show the same document. A large document is
+  // never expanded, even if expansion was left on from a smaller one.
+  const { expandEmbedded: expandAll, expandPointers, sortKeys } = deferred
   const shown = useMemo(() => {
     if (parsed === undefined) return undefined
-    const { expandEmbedded: all, expandPointers } = deferred
-    const value = all
-      ? expandEmbedded(parsed, embeddedOptions).value
-      : expandPointers.length > 0
-        ? expandEmbedded(parsed, { ...embeddedOptions, only: new Set(expandPointers) }).value
-        : parsed
-    return deferred.sortKeys ? withSortedKeys(value) : value
-  }, [parsed, embeddedOptions, deferred])
+    const value = large
+      ? parsed
+      : expandAll
+        ? expandEmbedded(parsed, embeddedOptions).value
+        : expandPointers.length > 0
+          ? expandEmbedded(parsed, { ...embeddedOptions, only: new Set(expandPointers) }).value
+          : parsed
+    return sortKeys ? withSortedKeys(value) : value
+  }, [parsed, large, embeddedOptions, expandAll, expandPointers, sortKeys])
 
   // Narrowing runs last, on what the user sees: embedded payloads are already
   // expanded, so a path can reach inside one.
@@ -347,40 +400,53 @@ export default function JsonTool() {
     setState((p) => ({ ...p, expandEmbedded: expand, expandPointers: [] }))
   }
 
-  const output = useMemo(() => {
-    const { text, mode, indent } = deferred
-    if (text === '') return ''
+  // Keyed on the fields it reads, not on `deferred`, so switching view or typing
+  // a filter does not re-serialise a 20 MB document.
+  const { text: deferredText, mode: deferredMode, indent } = deferred
+  const { output, unescapeError } = useMemo((): { output: string; unescapeError: string | null } => {
+    if (deferredText === '' || refused) return { output: '', unescapeError: null }
 
-    if (mode === 'escape') return escapeAsJsonString(text, { ascii: false })
-    if (mode === 'unescape') {
-      const r = unescapeJsonString(text)
-      return r.ok ? r.value : ''
+    if (deferredMode === 'escape') {
+      return { output: escapeAsJsonString(deferredText, { ascii: false }), unescapeError: null }
     }
-    if (focused === undefined) return ''
+    if (deferredMode === 'unescape') {
+      const r = unescapeJsonString(deferredText)
+      return r.ok ? { output: r.value, unescapeError: null } : { output: '', unescapeError: r.message }
+    }
+    if (focused === undefined) return { output: '', unescapeError: null }
 
-    return mode === 'minify'
-      ? minifyValue(focused.value, { sortKeys: false })
-      : formatValue(focused.value, { indent, sortKeys: false })
-  }, [focused, deferred])
+    return {
+      output:
+        deferredMode === 'minify'
+          ? minifyValue(focused.value, { sortKeys: false })
+          : formatValue(focused.value, { indent, sortKeys: false }),
+      unescapeError: null,
+    }
+  }, [focused, deferredText, deferredMode, indent, refused])
 
-  const unescapeError =
-    deferred.mode === 'unescape' && deferred.text !== ''
-      ? (() => {
-          const r = unescapeJsonString(deferred.text)
-          return r.ok ? null : r.message
-        })()
-      : null
+  // Only the head of a long output enters the DOM.
+  const outputCut = useMemo(() => {
+    if (output.length <= OUTPUT_INLINE_MAX) return null
+    return outputHead(output, OUTPUT_HEAD_CHARS)
+  }, [output])
+  const outputShown =
+    outputCut === null
+      ? output
+      : `${outputCut.head}\n\n… ${formatCount(outputCut.omitted)} more characters. Use Copy or Download for the whole thing.`
 
   const isTextMode = state.mode === 'escape' || state.mode === 'unescape'
   const valid = analysis.flavor === 'json' || analysis.flavor === 'jsonc'
   const showTree = state.mode === 'format' && state.view === 'tree' && valid
 
   // Only worth running on a document that does not parse. Counts are exact:
-  // each fix sees the previous one's output.
+  // each fix sees the previous one's output. Not for large input: every fix
+  // tokenises the whole text (~1.5 s for the set on 20 MB).
   const fixes = useMemo(
     () =>
-      analysis.flavor === 'invalid' || analysis.flavor === 'ndjson' ? runFixes(deferred.text) : null,
-    [analysis.flavor, deferred.text],
+      size.tier === 'ok' && (analysis.flavor === 'invalid' || analysis.flavor === 'ndjson')
+        ? runFixes(deferredText)
+        : null,
+    [size.tier, analysis.flavor, deferredText],
   )
   const fixable = fixes !== null && fixes.applied.length > 0
   const fixesYieldJson = useMemo(() => {
@@ -501,7 +567,7 @@ export default function JsonTool() {
       }
     >
       <TwoPane
-        rightLabel={isTextMode || valid ? 'Output' : 'Problems'}
+        rightLabel={isTextMode || valid || refused ? 'Output' : 'Problems'}
         left={
           <div className="flex min-h-0 w-full flex-col">
             <CodeArea
@@ -512,7 +578,10 @@ export default function JsonTool() {
               }
             />
             <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
-              <span>{formatBytes(new Blob([state.text]).size)}</span>
+              <span>{formatBytes(size.bytes)}</span>
+              {size.tier !== 'ok' && (
+                <Badge tone={refused ? 'del' : 'warn'}>{refused ? 'too large to parse' : 'large'}</Badge>
+              )}
               {!isTextMode && analysis.flavor === 'json' && (
                 <span className="flex items-center gap-1 text-add">
                   <CheckCircle2 size={12} aria-hidden /> valid JSON
@@ -523,8 +592,9 @@ export default function JsonTool() {
               )}
               {!isTextMode && analysis.issues.length > 0 && (
                 <Badge tone="del">
-                  {formatCount(analysis.issues.length)}{' '}
-                  {analysis.issues.length === 1 ? 'problem' : 'problems'}
+                  {formatCount(analysis.issues.length)}
+                  {analysis.moreIssues ? '+' : ''}{' '}
+                  {analysis.issues.length === 1 && !analysis.moreIssues ? 'problem' : 'problems'}
                 </Badge>
               )}
             </div>
@@ -532,6 +602,21 @@ export default function JsonTool() {
         }
         right={
           <div className="flex min-h-0 w-full flex-col border-t border-border md:border-t-0 md:border-l">
+            {/* Not dismissable: the tool is doing less than usual, and that
+                has to stay visible for as long as it is true. */}
+            {size.reason !== null && (
+              <div
+                role="status"
+                className={cn(
+                  'flex shrink-0 items-start gap-2 border-b border-border px-3 py-2 text-[12px]',
+                  refused ? 'bg-del-bg/40 text-del' : 'bg-warn-bg/40 text-warn',
+                )}
+              >
+                <AlertTriangle size={14} className="mt-0.5 shrink-0" aria-hidden />
+                <span>{size.reason}</span>
+              </div>
+            )}
+
             {/* NDJSON is the single most common thing pasted from a log file,
                 and every free tool just says "error". */}
             {analysis.ndjson !== null && !valid && (
@@ -621,6 +706,7 @@ export default function JsonTool() {
                 </strong>{' '}
                 as JavaScript numbers — e.g. {precisionLoss[0]!.literal} becomes{' '}
                 {precisionLoss[0]!.printed}. The formatted output is not safe to use.
+                {large && ' Lossless mode is off for large input.'}
               </div>
             )}
 
@@ -645,6 +731,12 @@ export default function JsonTool() {
                 {analysis.issues.map((issue) => (
                   <IssueCard key={`${issue.offset}:${issue.length}:${issue.code}`} issue={issue} />
                 ))}
+                {analysis.moreIssues && (
+                  <p className="text-[12px] text-faint">
+                    Showing the first {formatCount(analysis.issues.length)} problems. Fix these and
+                    the rest will be listed.
+                  </p>
+                )}
               </div>
             ) : showTree && focused !== undefined ? (
               <TreeView
@@ -654,12 +746,44 @@ export default function JsonTool() {
                 basePath={focused.path}
                 onFilter={(path: PathSegment[]) => setFilter(toJqPath(path))}
               />
+            ) : refused ? (
+              <div className="flex-1 p-3 text-[12px] text-muted">
+                Nothing is parsed at this size. The input stays in the editor on the left,
+                untouched.
+              </div>
             ) : (
-              <CodeArea
-                value={output}
-                readOnly
-                placeholder={selection?.ok === false ? 'Nothing at this path' : 'Output appears here'}
-              />
+              <>
+                <CodeArea
+                  value={outputShown}
+                  readOnly
+                  placeholder={selection?.ok === false ? 'Nothing at this path' : 'Output appears here'}
+                />
+                {outputCut !== null && (
+                  <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
+                    <Badge title="The full text is not shown, to keep the page responsive">
+                      showing {formatCount(outputCut.head.length)} of{' '}
+                      {formatCount(output.length)} characters
+                    </Badge>
+                    <span className="flex-1" />
+                    <CopyButton value={output} />
+                    <Button
+                      onClick={() =>
+                        downloadBlob(
+                          new Blob([output], {
+                            type: DOWNLOAD_NAMES[deferredMode].endsWith('.json')
+                              ? 'application/json'
+                              : 'text/plain',
+                          }),
+                          DOWNLOAD_NAMES[deferredMode],
+                        )
+                      }
+                    >
+                      <Download size={14} aria-hidden />
+                      Download
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         }

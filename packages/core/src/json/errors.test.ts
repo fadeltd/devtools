@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { analyze, stripJsonc } from './errors.ts'
+import fc from 'fast-check'
+import { analyze, MAX_ISSUES, SNIPPET_MAX_LINE, stripJsonc } from './errors.ts'
 
 const strict = { lenient: false }
 const lenient = { lenient: true }
@@ -174,5 +175,131 @@ describe('stripJsonc', () => {
   it('leaves valid strict JSON byte-identical', () => {
     const text = '{"a":[1,2,{"b":"c"}],"d":null}'
     expect(stripJsonc(text)).toBe(text)
+  })
+})
+
+/** The original character-at-a-time implementation, kept as the oracle. */
+function stripJsoncReference(text: string): string {
+  let out = ''
+  let i = 0
+  let inString = false
+  while (i < text.length) {
+    const ch = text[i]!
+    if (inString) {
+      out += ch
+      if (ch === '\\') {
+        out += text[i + 1] ?? ''
+        i += 2
+        continue
+      }
+      if (ch === '"') inString = false
+      i++
+      continue
+    }
+    if (ch === '"') {
+      inString = true
+      out += ch
+      i++
+      continue
+    }
+    if (ch === '/' && text[i + 1] === '/') {
+      while (i < text.length && text[i] !== '\n') i++
+      continue
+    }
+    if (ch === '/' && text[i + 1] === '*') {
+      i += 2
+      while (i < text.length && !(text[i] === '*' && text[i + 1] === '/')) i++
+      i += 2
+      continue
+    }
+    if (ch === ',') {
+      let j = i + 1
+      while (j < text.length) {
+        const c = text[j]!
+        if (/\s/.test(c)) j++
+        else if (c === '/' && text[j + 1] === '/') {
+          while (j < text.length && text[j] !== '\n') j++
+        } else if (c === '/' && text[j + 1] === '*') {
+          j += 2
+          while (j < text.length && !(text[j] === '*' && text[j + 1] === '/')) j++
+          j += 2
+        } else break
+      }
+      if (text[j] === '}' || text[j] === ']') {
+        i++
+        continue
+      }
+    }
+    out += ch
+    i++
+  }
+  return out
+}
+
+describe('stripJsonc — matches the reference implementation', () => {
+  // Biased towards the characters the stripper reacts to, so the interesting
+  // interleavings actually come up.
+  const piece = fc.constantFrom('"', '\\', '/', '*', ',', '}', ']', '{', '\n', ' ', '\t', 'a', '1', '//', '/*', '*/')
+  const soup = fc.array(piece, { maxLength: 40 }).map((parts) => parts.join(''))
+
+  it('on comment, string and comma soup', () => {
+    fc.assert(
+      fc.property(soup, (text) => {
+        expect(stripJsonc(text)).toBe(stripJsoncReference(text))
+      }),
+      { numRuns: 2000 },
+    )
+  })
+
+  it('on serialised JSON values', () => {
+    fc.assert(
+      fc.property(fc.jsonValue(), (value) => {
+        const text = JSON.stringify(value, null, 1)
+        expect(stripJsonc(text)).toBe(stripJsoncReference(text))
+      }),
+    )
+  })
+})
+
+describe('analyze — hostile input', () => {
+  it('caps the issues it reports, and says there were more', () => {
+    const prose = 'lorem ipsum dolor sit amet '.repeat(5000)
+    const a = analyze(prose, strict)
+    expect(a.flavor).toBe('invalid')
+    expect(a.issues).toHaveLength(MAX_ISSUES)
+    expect(a.moreIssues).toBe(true)
+  })
+
+  it('does not claim more issues when it reported them all', () => {
+    const a = analyze('{"a": ,}', strict)
+    expect(a.issues.length).toBeLessThan(MAX_ISSUES)
+    expect(a.moreIssues).toBe(false)
+    expect(analyze('{"a":1}', strict).moreIssues).toBe(false)
+  })
+
+  it('cuts a long snippet line to a window around the caret', () => {
+    const items = Array.from({ length: 5000 }, (_, i) => `{"id":${i}}`).join(',')
+    const issue = analyze(`[${items},]`, strict).issues[0]!
+    expect(issue.code).toBe('trailing-comma')
+    expect(issue.line).toBe(1)
+    const shown = issue.snippet.lines[0]!.text
+    expect(shown.length).toBeLessThanOrEqual(SNIPPET_MAX_LINE)
+    expect(shown.startsWith('…')).toBe(true)
+    // The caret still sits under the offending comma.
+    expect(shown[issue.snippet.caretColumn - 1]).toBe(',')
+  })
+
+  it('windows every context line to the same columns', () => {
+    const long = 'x'.repeat(1000)
+    const text = `{\n"a": "${long}",\n"b": "${long}" "c"\n}`
+    const issue = analyze(text, strict).issues[0]!
+    const caretLine = issue.snippet.lines.find((l) => l.number === issue.snippet.caretLine)!
+    expect(caretLine.text[issue.snippet.caretColumn - 1]).toBe('"')
+    for (const l of issue.snippet.lines) expect(l.text.length).toBeLessThanOrEqual(SNIPPET_MAX_LINE)
+  })
+
+  it('leaves short snippet lines whole', () => {
+    const issue = analyze('{\n  "a": ,\n}', strict).issues[0]!
+    expect(issue.snippet.lines.map((l) => l.text)).toEqual(['{', '  "a": ,', '}'])
   })
 })
