@@ -23,7 +23,7 @@ Three other things it does that the free sites generally do not:
 
 ## Tools
 
-| | |
+| Tool | What it does |
 |---|---|
 | **[Diff Checker](https://devtools.fadeltd.dev/diff)** | Side-by-side or unified, word-level highlighting, ignore whitespace / case / trim, copy as a unified patch, share by link (the content lives in the URL fragment, never on a server), `Alt+↑/↓` to jump between changes, compare as sorted lines or key-sorted JSON |
 | **[Base64](https://devtools.fadeltd.dev/base64)** | Encode/decode with correct UTF-8, base64url, padding control. Unwraps PEM/MIME line breaks and `data:` URIs, and tells you what it changed. Images and files encode to `data:` URIs; binary opens in a hex view with SHA-256; SVGs show what sanitising would strip |
