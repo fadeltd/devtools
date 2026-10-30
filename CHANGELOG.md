@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.14.0] — 2026-10-30
+
 ### Added
 - JSON Formatter: formatted output has line numbers and a fold gutter on desktop, so any object or array can be collapsed and expanded the way an editor does it, with Fold all (every level below the root) and Unfold all. Inputs over 1 MB and small screens keep the plain text view; on a phone, the Tree view folds.
 - JSON Formatter: Generate types opens the current output (filtered, expanded and sorted as shown) in JSON to Types. Valid NDJSON can be sent straight from its banner, one sample per line.

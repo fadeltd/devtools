@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.6.1] — 2026-10-30
+
 ### Fixed
 - `/diff`: `longestLineOf`, and so `assessSize`, treat `\r\n`, `\n` and a lone `\r` as line breaks, matching CodeMirror's line splitting. Before, only `\n` counted, so a `\r`-only file was measured as one line and CRLF lines one character too long. Still linear.
 
