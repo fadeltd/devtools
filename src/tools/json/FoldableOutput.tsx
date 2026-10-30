@@ -1,16 +1,10 @@
 import { useEffect, useRef } from 'react'
 import { Compartment, EditorState, type StateEffect } from '@codemirror/state'
 import { EditorView, keymap, lineNumbers } from '@codemirror/view'
-import {
-  codeFolding,
-  foldable,
-  foldEffect,
-  foldGutter,
-  foldKeymap,
-  forceParsing,
-  unfoldAll,
-} from '@codemirror/language'
+import { codeFolding, foldEffect, foldGutter, foldKeymap, unfoldAll } from '@codemirror/language'
 import { json } from '@codemirror/lang-json'
+import { getSearchQuery, openSearchPanel, search, searchKeymap, SearchQuery, setSearchQuery } from '@codemirror/search'
+import { foldRanges } from '@fadeltd/devtools-core/json'
 import { editorTheme } from '@/lib/codemirror/theme'
 
 /**
@@ -29,6 +23,8 @@ export interface FoldApi {
   /** Fold every object and array below the root, at every depth. */
   foldAll: () => void
   unfoldAll: () => void
+  /** Open the find panel: the browser's own find sees only rendered lines. */
+  find: () => void
 }
 
 /** The fold gutter and placeholder in the app's tokens. */
@@ -59,6 +55,57 @@ const foldTheme = EditorView.theme(
       cursor: 'pointer',
     },
     '.cm-foldPlaceholder:hover': { color: 'var(--color-fg)' },
+
+    // The find panel, as a toolbar row. Matches use the accent: they are a
+    // selection state, not a diff or validation colour.
+    '.cm-panels': {
+      backgroundColor: 'var(--color-surface)',
+      color: 'var(--color-fg)',
+    },
+    '.cm-panels-top': { borderBottom: '1px solid var(--color-border)' },
+    '.cm-panel.cm-search': {
+      display: 'flex',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: '6px',
+      padding: '6px 32px 6px 8px',
+      fontFamily: 'var(--font-sans)',
+      fontSize: '12px',
+    },
+    '.cm-panel.cm-search br': { display: 'none' },
+    // Regex search would run a user pattern on the main thread; see the guard
+    // in the extensions below.
+    '.cm-panel.cm-search label:has(input[name=re])': { display: 'none' },
+    '.cm-panel.cm-search label': { display: 'inline-flex', alignItems: 'center', gap: '4px', color: 'var(--color-muted)' },
+    '.cm-textfield': {
+      height: '28px',
+      backgroundColor: 'var(--color-bg)',
+      color: 'var(--color-fg)',
+      border: '1px solid var(--color-border-strong)',
+      borderRadius: '4px',
+      padding: '0 8px',
+      fontFamily: 'var(--font-mono)',
+      fontSize: '12px',
+    },
+    '.cm-textfield:focus': { outline: '1px solid var(--color-accent)', outlineOffset: '-1px' },
+    '.cm-button': {
+      height: '28px',
+      backgroundColor: 'var(--color-surface-2)',
+      backgroundImage: 'none',
+      color: 'var(--color-fg)',
+      border: '1px solid var(--color-border-strong)',
+      borderRadius: '4px',
+      padding: '0 10px',
+      fontSize: '12px',
+    },
+    '.cm-panel.cm-search [name=close]': {
+      color: 'var(--color-muted)',
+      fontSize: '16px',
+      top: '6px',
+      right: '8px',
+    },
+    '.cm-searchMatch': { backgroundColor: 'var(--color-accent-dim)' },
+    '.cm-searchMatch-selected': { backgroundColor: 'var(--color-accent)', color: 'var(--color-bg)' },
   },
   { dark: true },
 )
@@ -94,27 +141,32 @@ function marker(open: boolean): HTMLElement {
 const wrapping = new Compartment()
 
 /**
- * Fold every foldable line but the first, so the root stays open and the
- * top level reads as a list of collapsed members; each one then opens a level
- * at a time. CodeMirror's own `foldAll` folds only outermost ranges, which in
- * a JSON document is the root itself: one `{…}` line.
+ * Fold every object and array below the root, so the top level reads as a
+ * list of collapsed members that each open a level at a time. CodeMirror's own
+ * `foldAll` folds only outermost ranges, which in a JSON document is the root
+ * itself: one `{…}` line.
  *
- * On click only. The parser normally stops past the viewport, so this is the
- * one place the whole tree is built: ~0.8 s for 1.5 MB of formatted JSON
- * (Node, cold), inside a budget sized for the 2 MB the view is ever given.
- * Past the budget, only the parsed part folds.
+ * The ranges come from a bracket scan of the text (~13 ms for 2 MB) rather
+ * than the syntax tree, which would mean parsing the whole document first
+ * (~0.8 s); they have the same bounds as lang-json's own folds.
  */
 function foldBelowRoot(view: EditorView) {
-  forceParsing(view, view.state.doc.length, 2500)
-  const { state } = view
-  const effects: StateEffect<unknown>[] = []
-  for (let n = 2; n <= state.doc.lines; n++) {
-    const line = state.doc.line(n)
-    const range = foldable(state, line.from, line.to)
-    if (range) effects.push(foldEffect.of(range))
-  }
+  const effects: StateEffect<unknown>[] = foldRanges(view.state.doc.toString(), { minDepth: 1 }).map((r) =>
+    foldEffect.of({ from: r.from, to: r.to }),
+  )
   if (effects.length > 0) view.dispatch({ effects })
 }
+
+/** Turns regex search back off should anything switch it on. */
+const literalSearchOnly = EditorView.updateListener.of((update) => {
+  const query = getSearchQuery(update.state)
+  if (!query.regexp) return
+  update.view.dispatch({
+    effects: setSearchQuery.of(
+      new SearchQuery({ search: query.search, caseSensitive: query.caseSensitive, wholeWord: query.wholeWord }),
+    ),
+  })
+})
 
 /**
  * The smallest single replacement that turns `prev` into `next`: typing in the
@@ -191,7 +243,9 @@ export default function FoldableOutput({
           json(),
           editorTheme,
           foldTheme,
-          keymap.of(foldKeymap),
+          keymap.of([...foldKeymap, ...searchKeymap]),
+          search({ top: true }),
+          literalSearchOnly,
           // Focusable and selectable, so keyboard folding, select-all and copy
           // work; readOnly is what refuses input.
           EditorView.editable.of(true),
@@ -206,6 +260,7 @@ export default function FoldableOutput({
     initial.onReady?.({
       foldAll: () => foldBelowRoot(view),
       unfoldAll: () => void unfoldAll(view),
+      find: () => void openSearchPanel(view),
     })
     return () => {
       latest.current.onReady?.(null)

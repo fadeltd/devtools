@@ -6,7 +6,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- JSON Formatter: Find in the formatted output (the Find button, or Ctrl/Cmd+F in the output), which searches the whole document including folded parts, where the browser's own find only sees the lines on screen. Plain-text search, with match-case and whole-word options.
+
+### Changed
+- JSON Formatter: Fold all is near-instant on large output (about 0.15 s for 1.4 MB, from about a second).
+- JSON Formatter: parse errors show their character offset again, next to line and column.
 
 ## [0.14.0] — 2026-10-30
 

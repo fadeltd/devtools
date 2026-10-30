@@ -8,6 +8,7 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   Download,
+  Search,
   FileType,
   GitCompare,
   ListFilter,
@@ -829,6 +830,10 @@ export default function JsonTool() {
                     <Button variant="ghost" onClick={foldApi.unfoldAll}>
                       <ChevronsUpDown size={14} aria-hidden />
                       Unfold all
+                    </Button>
+                    <Button variant="ghost" onClick={foldApi.find} title="Find in the output (Ctrl/Cmd+F in the output)">
+                      <Search size={14} aria-hidden />
+                      Find
                     </Button>
                   </>
                 )}
