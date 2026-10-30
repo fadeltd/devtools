@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.16.0] — 2026-10-30
+
 ### Added
 - Regex Tester: test a JavaScript regular expression against your text. Every match is listed with its line, column and capture groups by number and name (a group that did not take part is shown as such), and clicking one selects it in the text. Flags are toggles, a pasted `/pattern/flags` literal fills both, and errors say what is wrong without repeating the pattern. Replace mode previews the result and counts replacements, and warns when a reference silently does nothing (`$3` with two groups, `$0`, an unknown `$<name>`, `\1`). Patterns run in a background worker, so one that backtracks without end, like `(a+)+$`, offers Cancel after two seconds instead of freezing the tab.
 

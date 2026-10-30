@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.8.0] — 2026-10-30
+
 ### Added
 - `/regex`: `runRegex({ pattern, flags, text, mode, replacement })` for a regex tester in one call, never throwing for a bad pattern. Built from `compileRegex` (errors as data, without the engine's echo of the pattern), `checkFlags`, `parseRegexLiteral`, `captureGroupNames`, `findMatches` (JavaScript's own semantics: all matches with `g`, the first without, empty matches stepping a code point under `u`/`v`, with line, column and group spans, capped at `MATCH_LIMIT`), `replaceWith` (exactly `String.prototype.replace`, plus a count) with `expandTemplate`, and `replacementIssues`.
 
