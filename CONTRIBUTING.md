@@ -42,7 +42,7 @@ pnpm build
 
 All four must pass. `pnpm test` includes property tests (`fast-check`); if you touch parsing, encoding or sorting, add one — they have caught real bugs here that example-based tests missed.
 
-Keep the entry bundle under ~90 kB gzip. Heavy dependencies belong inside a lazy route chunk, never the shell.
+Keep first-load JS (the entry plus the chunks it preloads) under 105 KiB gzip; CI enforces it. Heavy dependencies belong inside a lazy route chunk, never the shell.
 
 ## Scope
 
