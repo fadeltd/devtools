@@ -8,6 +8,22 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 - JSON to Types: paste a JSON sample and get TypeScript interfaces (or `type` aliases), a Zod schema or Go structs. Every sample is merged into one type, so a key missing from some array elements comes out optional and a key that is present but `null` comes out nullable, and the two are never confused. `1.0` is read as a float and `1` as an integer; an id beyond 2^53 is flagged instead of typed as something that would round it or that Zod 4 would reject, and in Go it widens to `int64` then `uint64`. Objects with the same structure share one type, and clashing names get the parent’s name, then a number. Go fields follow golint initialisms (`UserID`, `APIKey`), use pointers and `omitempty` for optional fields (switchable), align the way gofmt does, and a key a struct tag can’t hold is reported rather than mis-tagged. NDJSON is read one record per line, comments and trailing commas are accepted, invalid JSON shows its line and a caret, and large pastes are processed off the main thread.
+- Diff: a new "Compare as" option shows both sides with their lines sorted or as key-sorted JSON, so reordered lines or keys stop showing up as changes. Both panes are read-only while it is on, a banner says which view you are looking at with Show original to go back, and a side that isn't valid JSON is shown as written with the reason. Big integers stay exact, and the copied patch says it is of the sorted view.
+- List Tools: Copy link shares your pipeline's steps as a link. It carries the steps (and a set operation's compare list) but never your input text, and it lives in the part of the URL after `#`, which browsers never send to a server. Opening one replaces your steps and leaves your text alone; a damaged link changes nothing.
+- Base64: a decoded SVG now previews beside its text, and every SVG gets an inspector with its size and viewBox and a report of what sanitising strips (scripts, `on*` handlers, `javascript:` URLs, `<foreignObject>`), with Copy and Download of the sanitised SVG. The SVG is still only ever shown as an image, so nothing in it runs.
+- Base64: binary output and files open in a scrollable hex view with the detected type, size and SHA-256, smooth up to the 25 MB file limit, with Copy, Download of the full dump and Download of the raw bytes.
+- .env Converter: reads shell `export` files too, including several commands on one line and `'\''` quoting, detected automatically when only a shell could read the text.
+- Works offline: after the first visit every tool loads without a connection. There is no install prompt.
+- Links to the site now show a preview image when shared.
+
+### Changed
+- JSON Formatter: input over 1 MB keeps validating and formatting but turns off auto-fixes, embedded-JSON expansion and lossless numbers, with a note that stays on screen; past 50 MB nothing is parsed. Output over 2 MB shows its start, with Copy and Download for all of it. At most 100 problems are listed. A 20 MB NDJSON paste stays responsive, and it is now kept across reloads (the tool saves to IndexedDB instead of localStorage, so its earlier saved input is reset once).
+- YAML / JSON / TOML and Text to Binary / Hex convert off the main thread, so a large paste no longer freezes typing, and lines over 100,000 characters (in those tools and the JSON Formatter) scroll sideways instead of wrapping, which keeps a multi-MB single-line paste editable.
+- The CSS and SQL formatters load Prettier and sql-formatter only when they are needed, instead of with every run.
+
+### Fixed
+- Diff: a file with a single very long line is refused before the editor tries to draw it, instead of freezing the tab, whether it is picked, dropped, restored after a reload or pasted.
+- Diff: in unified view, a file picked into the left side, or a swap, now shows up.
 
 ## [0.12.0] — 2026-10-29
 

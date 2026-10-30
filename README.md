@@ -25,10 +25,10 @@ Three other things it does that the free sites generally do not:
 
 | | |
 |---|---|
-| **[Diff Checker](https://devtools.fadeltd.dev/diff)** | Side-by-side or unified, word-level highlighting, ignore whitespace / case / trim, copy as a unified patch, share by link (the content lives in the URL fragment, never on a server), `Alt+↑/↓` to jump between changes |
-| **[Base64](https://devtools.fadeltd.dev/base64)** | Encode/decode with correct UTF-8, base64url, padding control. Unwraps PEM/MIME line breaks and `data:` URIs, and tells you what it changed |
-| **[List Tools](https://devtools.fadeltd.dev/list)** | Sort (natural or alphabetical), remove duplicates, randomize, reverse — without the phantom blank line every other list tool adds |
-| **[JSON Formatter](https://devtools.fadeltd.dev/json)** | Format, minify, sort keys. Reports *every* problem with an exact line, column and caret, detects NDJSON, keeps big numbers byte-exact, and **expands JSON that was serialised into a string** — the thing structured logs do, including double-encoded. Tree view with copy-path (pointer / dot / jq), and one-click fixes for trailing commas, comments and single quotes, previewed as a diff |
+| **[Diff Checker](https://devtools.fadeltd.dev/diff)** | Side-by-side or unified, word-level highlighting, ignore whitespace / case / trim, copy as a unified patch, share by link (the content lives in the URL fragment, never on a server), `Alt+↑/↓` to jump between changes, compare as sorted lines or key-sorted JSON |
+| **[Base64](https://devtools.fadeltd.dev/base64)** | Encode/decode with correct UTF-8, base64url, padding control. Unwraps PEM/MIME line breaks and `data:` URIs, and tells you what it changed. Images and files encode to `data:` URIs; binary opens in a hex view with SHA-256; SVGs show what sanitising would strip |
+| **[List Tools](https://devtools.fadeltd.dev/list)** | Sort (natural or alphabetical), remove duplicates, randomize, reverse and eleven more steps chained into a pipeline you can share as a link — without the phantom blank line every other list tool adds |
+| **[JSON Formatter](https://devtools.fadeltd.dev/json)** | Format, minify, sort keys. Reports *every* problem with an exact line, column and caret, detects NDJSON, keeps big numbers byte-exact, and **expands JSON that was serialised into a string** — the thing structured logs do, including double-encoded. Tree view with copy-path (pointer / dot / jq), and one-click fixes for trailing commas, comments and single quotes, previewed as a diff. Stays responsive on a 20 MB paste |
 | **[JSON to Types](https://devtools.fadeltd.dev/json-types)** | Paste a JSON sample (or NDJSON, one record per line) and get TypeScript interfaces, a Zod schema or Go structs. Every sample is merged, so a key missing from some array elements is optional and a `null` is nullable — kept apart in all three; `1.0` is a float; ids past 2^53 are flagged; Go names follow golint (`UserID`) and align as gofmt does |
 | **[ID Generator](https://devtools.fadeltd.dev/id-gen)** | Prefixed Stripe-style ids, UUID v4, time-ordered UUID v7 and ULID, custom alphabet and length, bulk generation, entropy readout, and an inspector that reads a UUID's version or a v7/ULID's creation time. Doubles as a password generator; nothing generated is ever saved |
 | **[Text Statistics](https://devtools.fadeltd.dev/text-stats)** | Characters, letters, words, sentences, paragraphs, reading time, and word/phrase frequency |
@@ -54,7 +54,7 @@ Three other things it does that the free sites generally do not:
 | **[QR Code](https://devtools.fadeltd.dev/qr)** | QR codes for text, URLs and Wi-Fi with a chosen error correction level, downloadable as a single-path SVG or a crisp PNG; scan-risk warnings; the Wi-Fi password is never saved |
 | **[Lorem Ipsum](https://devtools.fadeltd.dev/lorem)** | Exact counts of words, sentences or paragraphs, optional classic opening, plain text / HTML `<p>` / Markdown output, one-key Regenerate |
 
-Press `⌘K` anywhere to jump to a tool, `⌘1`–`⌘9` for pinned ones, and `?` for the shortcut list. Your last input is restored when you come back.
+Press `⌘K` anywhere to jump to a tool, `⌘1`–`⌘9` for pinned ones, and `?` for the shortcut list. Your last input is restored when you come back, and after the first visit the whole site works offline.
 
 ## Development
 
