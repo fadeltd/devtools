@@ -20,9 +20,18 @@ import {
   SHARE_PARAM,
   decodeShare,
   encodeShare,
+  MAX_DIFF_CHARS,
 } from '@fadeltd/devtools-core/diff'
 import { diffFor } from './engine'
-import { prepareView, TRANSFORM_BANNERS, TRANSFORM_LABELS, type Transform } from './view'
+import { TransformRunner, type TransformInput, type TransformJob } from './TransformRunner'
+import {
+  plainView,
+  TRANSFORM_BANNERS,
+  TRANSFORM_BUSY,
+  TRANSFORM_LABELS,
+  type DiffView,
+  type Transform,
+} from './view'
 
 interface State {
   left: string
@@ -88,23 +97,37 @@ export default function DiffTool() {
   // Opened from a share link: load it over whatever was saved. setState marks
   // the state dirty, so the async IDB hydration cannot overwrite it afterwards.
   useEffect(() => {
-    const hash = window.location.hash
-    if (!hash.startsWith(SHARE_PREFIX)) return
     let cancelled = false
-    void decodeShare(hash).then((shared) => {
-      if (cancelled) return
-      // Drop the fragment so a reload does not reapply it over later edits.
-      // history.state is kept: React Router stores its index there.
-      window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
-      if (shared === null) {
-        setError('This share link is damaged or from a newer version.')
-        return
-      }
-      setState((p) => ({ ...p, left: shared.left, right: shared.right }))
-      setNotice('Opened a shared diff. It replaced your previous comparison.')
-    })
+    // The fragment being decoded, so a hashchange for it does not decode it again.
+    let loading: string | null = null
+    function load() {
+      const hash = window.location.hash
+      if (!hash.startsWith(SHARE_PREFIX) || hash === loading) return
+      loading = hash
+      void decodeShare(hash).then((shared) => {
+        if (loading === hash) loading = null
+        // A newer link may have arrived meanwhile; only the latest one counts.
+        if (cancelled || window.location.hash !== hash) return
+        // Drop the fragment so a reload does not reapply it over later edits.
+        // history.state is kept: React Router stores its index there. This
+        // fires no hashchange, so the same link pasted again loads again.
+        window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
+        if (shared === null) {
+          setError('This share link is damaged or from a newer version.')
+          return
+        }
+        setError(null)
+        setState((p) => ({ ...p, left: shared.left, right: shared.right }))
+        setNotice('Opened a shared diff. It replaced your previous comparison.')
+      })
+    }
+    load()
+    // A link pasted into the address bar of an open Diff tab is a same-page
+    // fragment change, not a load.
+    window.addEventListener('hashchange', load)
     return () => {
       cancelled = true
+      window.removeEventListener('hashchange', load)
     }
   }, [setState])
 
@@ -138,14 +161,43 @@ export default function DiffTool() {
   }
 
   // What the panes show, and whether they may show it at all, decided on the
-  // live text: see prepareView. Only the stats below run on a deferred copy.
+  // live text: see plainView. Only the stats below run on a deferred copy.
   const { left, right, transform } = state
-  const view = useMemo(() => prepareView(left, right, transform), [left, right, transform])
-  const size = view.size
   const transforming = transform !== 'none'
+  // Past the hard cap there is nothing to show, so nothing is sent to be
+  // parsed or sorted: the text as written is refused as it is.
+  const overCap = Math.max(left.length, right.length) > MAX_DIFF_CHARS
+  const transformInput = useMemo<TransformInput | null>(
+    () => (transform === 'none' || overCap ? null : { left, right, kind: transform }),
+    [left, right, transform, overCap],
+  )
+  const plain = useMemo(
+    () => (transformInput === null ? plainView(left, right) : null),
+    [left, right, transformInput],
+  )
+
+  // A transform is built in a worker (TransformRunner) and arrives later. Its
+  // size verdict comes with it, so nothing reaches CodeMirror unjudged.
+  const [job, setJob] = useState<TransformJob | null>(null)
+  const current = job !== null && job.input === transformInput ? job : null
+  const jobStatus = current?.status ?? 'running'
+  const finished = job?.result
+  let view: DiffView | null = plain
+  if (view === null && finished !== undefined) {
+    if (finished.input === transformInput) view = finished.view
+    // While a newer run is going, keep the last view of the same transform on
+    // screen rather than flashing the raw text as if it were transformed.
+    else if (finished.input.kind === transform && (jobStatus === 'running' || jobStatus === 'slow')) {
+      view = finished.view
+    }
+  }
+  /** A transform is on and the panes do not (yet) show the current text. */
+  const pending = plain === null && finished?.input !== transformInput
+  const size = view?.size ?? null
 
   const deferredView = useDeferredValue(view)
   const stats = useMemo(() => {
+    if (deferredView === null) return null
     const { left: a, right: b, size: verdict } = deferredView
     if (verdict.tier === 'refuse') return null
     if (a === '' && b === '') return null
@@ -168,6 +220,8 @@ export default function DiffTool() {
     // Built and written inside the click handler: Safari refuses a clipboard
     // write that happens anywhere else.
     // Of what is shown: in a transform, the sorted text, as the label says.
+    // Never of a view still catching up with the text (the button is disabled).
+    if (view === null || pending) return
     const patch = toUnifiedPatch(view.left, view.right)
     if (patch === null) {
       setError('These inputs are too different to build a patch in time. Use `diff -u` on the command line.')
@@ -344,7 +398,7 @@ export default function DiffTool() {
           </Button>
           <Button
             onClick={copyPatch}
-            disabled={view.left === view.right || size.tier === 'refuse'}
+            disabled={view === null || pending || view.left === view.right || view.size.tier === 'refuse'}
             title={
               transforming
                 ? 'Copy the shown, rewritten text as a unified patch, not your original text. The Ignore toggles do not apply.'
@@ -377,6 +431,7 @@ export default function DiffTool() {
       }
     >
       <div className="flex h-full min-h-0 flex-col">
+        {transformInput !== null && <TransformRunner input={transformInput} onChange={setJob} />}
         {error !== null && (
           <div className="shrink-0 border-b border-border px-3 py-1.5 text-[12px] text-del">
             {error}
@@ -397,25 +452,50 @@ export default function DiffTool() {
               <span>{TRANSFORM_BANNERS[transform]} Both sides are read-only; your text is unchanged.</span>
               <Button onClick={() => setState((p) => ({ ...p, transform: 'none' }))}>Show original</Button>
             </div>
-            {view.problems.map((problem) => (
+            {pending && view !== null && jobStatus !== 'slow' && (
+              <div className="text-faint">{TRANSFORM_BUSY[transform]} Showing the previous view until it is done.</div>
+            )}
+            {pending && jobStatus === 'slow' && (
+              <div className="flex items-center gap-3 text-warn">
+                {TRANSFORM_BUSY[transform]} Still working after 2s.
+                <Button variant="danger" onClick={current?.cancel}>
+                  Cancel
+                </Button>
+              </div>
+            )}
+            {pending && jobStatus === 'cancelled' && (
+              <div className="text-del">Cancelled. Show the original, or load a file to try again.</div>
+            )}
+            {pending && jobStatus === 'error' && (
+              <div className="text-del">Could not build this view: {current?.error}</div>
+            )}
+            {(view?.problems ?? []).map((problem) => (
               <div key={problem} className="text-del">
                 {problem}
               </div>
             ))}
-            {view.notes.map((note) => (
+            {(view?.notes ?? []).map((note) => (
               <div key={note} className="text-warn">
                 {note}
               </div>
             ))}
           </div>
         )}
-        {size.reason !== null && (
+        {size !== null && size.reason !== null && (
           <div className="shrink-0 border-b border-border px-3 py-1.5 text-[12px] text-warn">
             {size.reason}
           </div>
         )}
 
-        {size.tier === 'refuse' ? (
+        {view === null ? (
+          // A transform with nothing finished yet. Never the raw text: it
+          // would read as the transformed view.
+          <div className="flex flex-1 items-center justify-center p-6 text-center text-[13px] text-muted">
+            {transformInput !== null && (jobStatus === 'running' || jobStatus === 'slow')
+              ? TRANSFORM_BUSY[transformInput.kind]
+              : 'Nothing to show.'}
+          </div>
+        ) : view.size.tier === 'refuse' ? (
           <div className="flex flex-1 items-center justify-center p-6 text-center text-[13px] text-muted">
             Input too large to display.
           </div>
@@ -429,7 +509,7 @@ export default function DiffTool() {
               right={view.right}
               mode={effectiveMode}
               wrapLines={state.wrapLines}
-              highlightChanges={size.tier === 'ok'}
+              highlightChanges={view.size.tier === 'ok'}
               ignore={ignoreOf(state)}
               readOnly={transforming}
               onChangeLeft={(value) => setState((p) => ({ ...p, left: value }))}

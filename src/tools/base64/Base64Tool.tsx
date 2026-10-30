@@ -29,6 +29,7 @@ import {
   FILE_MAX_BYTES,
   fileTier,
 } from '@fadeltd/devtools-core/base64'
+import { hasLongLine } from '@fadeltd/devtools-core/text'
 import { DecodedBinary, DecodedImage, DecodedSvg, FileEncoder, type StoredFile } from './FilePanes'
 
 type Direction = 'encode' | 'decode'
@@ -189,6 +190,9 @@ export default function Base64Tool() {
 
   const deferred = useDeferredValue(state)
   const outcome = useMemo(() => compute(deferred), [deferred])
+  // Unwrapped base64 is one long line; soft-wrapping it costs seconds per edit.
+  const inputNoWrap = useMemo(() => hasLongLine(state.text), [state.text])
+  const outputNoWrap = useMemo(() => hasLongLine(outcome.output), [outcome.output])
   const fileMode = state.direction === 'encode' && state.file !== null
 
   /** Every way a file arrives -- drop, pick, paste -- ends here. */
@@ -389,6 +393,7 @@ export default function Base64Tool() {
                     value={state.text}
                     onChange={(e) => setState((p) => ({ ...p, text: e.target.value }))}
                     onPaste={onPaste}
+                    wrap={inputNoWrap ? 'off' : undefined}
                     placeholder={
                       state.direction === 'encode'
                         ? 'Paste text to encode — or drop, paste or choose an image or file…'
@@ -424,7 +429,12 @@ export default function Base64Tool() {
                   ) : outcome.svg !== null ? (
                     <DecodedSvg bytes={outcome.svg.bytes} text={outcome.output} />
                   ) : (
-                    <CodeArea value={outcome.output} readOnly placeholder="Output appears here" />
+                    <CodeArea
+                      value={outcome.output}
+                      readOnly
+                      wrap={outputNoWrap ? 'off' : undefined}
+                      placeholder="Output appears here"
+                    />
                   )}
                   <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
                     {outcome.sizeNote !== null && <span>{outcome.sizeNote}</span>}

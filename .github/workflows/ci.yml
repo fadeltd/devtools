@@ -72,17 +72,27 @@ jobs:
             exit 1
           fi
 
-      # The entry bundle is what every visitor pays for on first load. If a
-      # heavy dependency escapes a lazy route chunk, this is where we find out
-      # rather than in production.
-      - name: Check entry bundle budget
+      # First-load JS is what every visitor pays for before any tool runs: the
+      # entry plus every chunk the HTML modulepreloads (the registry sits in
+      # one) and registerSW.js. If a heavy dependency escapes a lazy route
+      # chunk, this is where we find out rather than in production.
+      - name: Check first-load JS budget
         run: |
-          BUDGET=92160
-          ENTRY=$(find dist/assets -name 'index-*.js' -print -quit)
-          SIZE=$(gzip -c "$ENTRY" | wc -c | tr -d ' ')
-          echo "entry: $ENTRY"
-          echo "gzipped: ${SIZE}B   budget: ${BUDGET}B"
-          if [ "$SIZE" -gt "$BUDGET" ]; then
-            echo "::error::Entry bundle ${SIZE}B exceeds the ${BUDGET}B budget."
+          BUDGET=107520
+          LIST="$RUNNER_TEMP/first-load.txt"
+          grep -oE '(src|href)="/[^"]+\.js"' dist/index.html | sed -E 's/^(src|href)="\///; s/"$//' > "$LIST" || true
+          if ! grep -qE '^assets/index-[^/]+\.js$' "$LIST"; then
+            echo "::error::No entry script found in dist/index.html."
+            exit 1
+          fi
+          TOTAL=0
+          while read -r FILE; do
+            SIZE=$(gzip -c "dist/$FILE" | wc -c | tr -d ' ')
+            echo "${SIZE}B  $FILE"
+            TOTAL=$((TOTAL + SIZE))
+          done < "$LIST"
+          echo "first-load JS, gzipped: ${TOTAL}B   budget: ${BUDGET}B"
+          if [ "$TOTAL" -gt "$BUDGET" ]; then
+            echo "::error::First-load JS ${TOTAL}B exceeds the ${BUDGET}B budget."
             exit 1
           fi

@@ -1,12 +1,40 @@
+import fc from 'fast-check'
 import { describe, expect, it } from 'vitest'
 import { diff } from '@codemirror/merge'
+import { EditorState } from '@codemirror/state'
 import {
   computeDiff,
   assessSize,
   diffStats,
   formatStats,
+  longestLineOf,
   type ChangeRange,
 } from '@fadeltd/devtools-core/diff'
+
+/** The longest line as the editor lays it out, after its own line splitting. */
+function editorLongestLine(text: string): number {
+  let longest = 0
+  for (const line of EditorState.create({ doc: text }).doc.iterLines()) {
+    longest = Math.max(longest, line.length)
+  }
+  return longest
+}
+
+describe('longestLineOf matches what CodeMirror lays out', () => {
+  it('on every mix of \\n, \\r\\n and lone \\r', () => {
+    fc.assert(
+      fc.property(fc.string({ unit: fc.constantFrom('a', 'bb', '\n', '\r', '\r\n') }), (s) => {
+        expect(longestLineOf(s)).toBe(editorLongestLine(s))
+      }),
+    )
+  })
+
+  it('on a classic-Mac file, which is many short lines rather than one long one', () => {
+    const text = ('x'.repeat(40) + '\r').repeat(10_000)
+    expect(editorLongestLine(text)).toBe(40)
+    expect(assessSize(text, '').longestLine).toBe(40)
+  })
+})
 
 const statsOf = (a: string, b: string) => diffStats(a, b, diff(a, b))
 

@@ -18,6 +18,6 @@
 - [ ] User-facing change → an entry under `## [Unreleased]` in `CHANGELOG.md` (without one, the merge releases nothing)
 - [ ] No network request, third-party resource, `innerHTML`, or dependency that needs `eval`
 - [ ] Anything touching a secret declares `store: { kind: 'none' }`; nothing multi-MB goes to `localStorage`
-- [ ] Entry bundle still under ~90 kB gzip (CI enforces 92160 B)
+- [ ] First-load JS still under 105 KiB gzip (CI enforces 107520 B)
 - [ ] Works at phone width: panes stack, 44px touch targets, no hover-only controls
 - [ ] Markdown prose is not hard-wrapped

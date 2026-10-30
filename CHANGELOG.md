@@ -6,7 +6,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- JSON Formatter: formatted output has line numbers and a fold gutter on desktop, so any object or array can be collapsed and expanded the way an editor does it, with Fold all (every level below the root) and Unfold all. Inputs over 1 MB and small screens keep the plain text view; on a phone, the Tree view folds.
+- JSON Formatter: Generate types opens the current output (filtered, expanded and sorted as shown) in JSON to Types. Valid NDJSON can be sent straight from its banner, one sample per line.
+
+### Changed
+- Diff: Sorted lines and Key-sorted JSON are built in the background, so turning them on for a large file no longer freezes the page. While a view is being built the previous one stays on screen (or a short busy message), Copy patch waits for it, and Cancel appears after 2 seconds.
+- Base64, URL Encode / Decode and String Escaper stop soft-wrapping a line longer than 100,000 characters, so a multi-MB single line stays editable instead of taking seconds per keystroke.
+- JSON Formatter and YAML / JSON / TOML show parse errors in the same card as JSON to Types; the JSON card no longer shows the character offset.
+
+### Fixed
+- Diff: a share link pasted into the address bar of a Diff tab that is already open now loads without a reload.
+- Diff: a large file with classic Mac line endings (a lone carriage return) is measured line by line instead of being refused as one long line.
 
 ## [0.13.0] — 2026-10-30
 

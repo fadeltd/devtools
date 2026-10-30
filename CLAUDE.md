@@ -79,7 +79,7 @@ Load-bearing rules from it:
 - **A plain `<textarea>` is the default**, via `components/ui/CodeArea`. It is faster on 100k lines than any editor and gives native find, select-all, copy and undo for free. CodeMirror is justified only in diff and JSON.
 - **Never run a user-supplied regex on the main thread.** Anything that can go pathological — user regexes, unbounded transforms of pasted input — runs through `lib/worker/spawn.ts` (`useWorkerJob` in components). A backtracking regex never yields, so `terminate()` is the only abort; the job runner supersedes busy workers and offers Cancel after 2s.
 - No `manualChunks` in `vite.config.ts`. Splitting follows the registry's dynamic imports; hand-tuning is how CodeMirror lands in the entry bundle.
-- Entry bundle budget: **~90 kB gzip.** It is ~83 kB today. If it jumps, something leaked out of a lazy route. The CodeMirror merge view (~92 kB gzip) must stay inside the `diff` route chunk, and `cmdk` inside the lazy `CommandPalette` chunk.
+- First-load JS budget: **105 KiB gzip** (107,520 B), enforced in CI over every script `index.html` loads: the entry, its modulepreloaded chunks (the registry among them) and `registerSW.js`. It is ~98 kB today, ~83 kB of it the entry. If it jumps, something leaked out of a lazy route. The CodeMirror merge view (~92 kB gzip) must stay inside the `diff` route chunk, and `cmdk` inside the lazy `CommandPalette` chunk.
 - `MergeView` sizing lives in `global.css`, not `EditorView.theme`: the `.cm-mergeView` / `.cm-mergeViewEditors` nodes are outside the editor, and without explicit width/height the two panes collapse toward their content.
 
 ### Mobile
