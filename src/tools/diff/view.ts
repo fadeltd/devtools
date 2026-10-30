@@ -1,11 +1,4 @@
-import {
-  assessSize,
-  transformForDiff,
-  MAX_DIFF_CHARS,
-  type DiffTransform,
-  type SizeVerdict,
-  type TransformResult,
-} from '@fadeltd/devtools-core/diff'
+import { assessSize, type DiffTransform, type SizeVerdict } from '@fadeltd/devtools-core/diff'
 
 export type Transform = 'none' | DiffTransform
 
@@ -20,49 +13,20 @@ export interface DiffView {
   notes: string[]
 }
 
-// One entry per side is enough: in a transform the panes are read-only, so a
-// side changes only when a file replaces it, and the other side should not be
-// re-parsed or re-sorted when that happens.
-const cache: Array<{ text: string; kind: DiffTransform; result: TransformResult }> = []
-
-function transformCached(text: string, kind: DiffTransform): TransformResult {
-  const hit = cache.find((e) => e.kind === kind && e.text === text)
-  if (hit) return hit.result
-  const result = transformForDiff(text, kind)
-  cache.unshift({ text, kind, result })
-  cache.length = Math.min(cache.length, 2)
-  return result
-}
-
 /**
- * Decide what reaches CodeMirror, from the live text.
+ * The view of the text as written, decided from the live text.
  *
  * Runs on the current state rather than a deferred copy: a deferred verdict
  * lags a render behind, which is exactly long enough for a dropped 5 MB
  * single-line file to be laid out on the main thread before it is refused.
  * `assessSize` is a couple of `indexOf` scans, so this is cheap per keystroke.
+ *
+ * A transform is built in a worker instead (see `transform-view.ts`); this
+ * module deliberately does not import it, so the JSON parser and the line
+ * sort stay out of the route chunk.
  */
-export function prepareView(left: string, right: string, transform: Transform): DiffView {
-  // Past the hard cap there is nothing to show, so skip parsing or sorting it.
-  if (transform === 'none' || Math.max(left.length, right.length) > MAX_DIFF_CHARS) {
-    return { left, right, size: assessSize(left, right), problems: [], notes: [] }
-  }
-
-  const problems: string[] = []
-  const notes: string[] = []
-  const side = (text: string, name: 'Left' | 'Right'): string => {
-    const r = transformCached(text, transform)
-    if (!r.ok) {
-      problems.push(`${name} side is not valid JSON: ${r.error}. Showing it as written.`)
-      return text
-    }
-    for (const note of r.notes) notes.push(`${name}: ${note}`)
-    return r.text
-  }
-
-  const shownLeft = side(left, 'Left')
-  const shownRight = side(right, 'Right')
-  return { left: shownLeft, right: shownRight, size: assessSize(shownLeft, shownRight), problems, notes }
+export function plainView(left: string, right: string): DiffView {
+  return { left, right, size: assessSize(left, right), problems: [], notes: [] }
 }
 
 export const TRANSFORM_LABELS: Record<Transform, string> = {
@@ -74,4 +38,9 @@ export const TRANSFORM_LABELS: Record<Transform, string> = {
 export const TRANSFORM_BANNERS: Record<DiffTransform, string> = {
   'sort-lines': 'Showing line-sorted view.',
   json: 'Showing key-sorted JSON view.',
+}
+
+export const TRANSFORM_BUSY: Record<DiffTransform, string> = {
+  'sort-lines': 'Sorting lines…',
+  json: 'Parsing and key-sorting JSON…',
 }

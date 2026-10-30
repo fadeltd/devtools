@@ -151,13 +151,37 @@ export function assessSize(a: string, b: string): SizeVerdict {
   return { tier: 'ok', reason: null, longestLine }
 }
 
-/** Length of the longest `\n`-separated line, not counting the terminator. */
+/**
+ * Length of the longest line, not counting its terminator.
+ *
+ * A line ends at `\r\n`, `\n` or a lone `\r`, which is what CodeMirror splits
+ * on (`/\r\n?|\n/`), so the verdict matches what the editor will lay out: a
+ * classic-Mac file of short `\r`-separated lines is many lines, not one.
+ *
+ * Two `indexOf` cursors, each re-searched only once the scan passes it, so it
+ * stays linear. A file with no `\r` pays one failed search for it, and a CRLF
+ * file roughly two scans instead of one.
+ */
 export function longestLineOf(text: string): number {
   let longest = 0
   let start = 0
-  for (let nl = text.indexOf('\n'); nl !== -1; nl = text.indexOf('\n', start)) {
-    if (nl - start > longest) longest = nl - start
-    start = nl + 1
+  let lf = text.indexOf('\n')
+  let cr = text.indexOf('\r')
+  while (lf !== -1 || cr !== -1) {
+    let end: number
+    let next: number
+    if (cr === -1 || (lf !== -1 && lf < cr)) {
+      end = lf
+      next = lf + 1
+    } else {
+      end = cr
+      // \r\n is one break, not a break followed by an empty line.
+      next = lf === cr + 1 ? cr + 2 : cr + 1
+    }
+    if (end - start > longest) longest = end - start
+    start = next
+    if (lf !== -1 && lf < start) lf = text.indexOf('\n', start)
+    if (cr !== -1 && cr < start) cr = text.indexOf('\r', start)
   }
   return Math.max(longest, text.length - start)
 }
