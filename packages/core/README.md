@@ -124,7 +124,7 @@ await formatSql('select a from t where b = 1', { dialect: 'postgresql', keywordC
 | Subpath | What it does |
 |---|---|
 | `/list` | Sort, natural sort, dedupe, shuffle, case, prefix/suffix, filter, number, wrap, join, split, trim, normalise, set operations, slice; chained with per-step line counts; validated `#p=` pipeline links |
-| `/json` | Every error with line and column, auto-fixes for almost-JSON, embedded JSON-in-a-string expansion, lossless big numbers, tree flattening, path formats (pointer, dot, jq), size tiers for large input |
+| `/json` | Every error with line and column, auto-fixes for almost-JSON, embedded JSON-in-a-string expansion, lossless big numbers, tree flattening, path formats (pointer, dot, jq), size tiers for large input, fold ranges for an editor |
 | `/json-types` | TypeScript, Zod or Go types inferred from sample JSON or NDJSON: optional vs nullable, shared and collision-safe type names, int vs float by literal, Go initialisms and gofmt alignment, notes for anything approximated |
 | `/diff` | Two-stage line → word diff, ignore whitespace/case/trim, sorted-lines and key-sorted-JSON views, exact stats, size guard, unified patch, share-link encoding |
 | `/base64` | UTF-8-correct encode and decode, base64url, input sanitising, magic-byte type sniffing, hex dump rows for virtualised views, SVG strip reports, `data:` URI / `<img>` / CSS output |

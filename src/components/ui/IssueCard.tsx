@@ -8,6 +8,8 @@ export interface Issue {
   message: string
   line: number | null
   column: number | null
+  /** Character offset into the input, for issues that have one. */
+  offset?: number
   hint: string | null
   snippet: {
     lines: ReadonlyArray<{ number: number; text: string }>
@@ -31,6 +33,7 @@ export function IssueCard({ issue }: { issue: Issue }) {
             <div className="font-mono text-[11px] text-faint">
               line {issue.line}
               {issue.column !== null && `, column ${issue.column}`}
+              {issue.offset !== undefined && ` · offset ${issue.offset}`}
             </div>
           )}
         </div>
