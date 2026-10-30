@@ -98,12 +98,20 @@ interface Frame {
  * Pre-order rows for every node reachable through `expanded` containers.
  *
  * Iterative, so a deeply nested document cannot overflow the call stack.
+ *
+ * At most `maxRows` rows are produced, and the work stops there too: an
+ * expanded array of ten million numbers costs `maxRows` rows, not ten million.
+ * A result of exactly `maxRows` rows may have been cut short.
  */
-export function flattenTree(root: unknown, expanded: ReadonlySet<string>): FlatNode[] {
+export function flattenTree(
+  root: unknown,
+  expanded: ReadonlySet<string>,
+  maxRows = Infinity,
+): FlatNode[] {
   const rows: FlatNode[] = []
   const stack: Frame[] = [{ value: root, pointer: '', depth: 0, key: null, parent: -1 }]
 
-  while (stack.length > 0) {
+  while (stack.length > 0 && rows.length < maxRows) {
     const frame = stack.pop()!
     const kind = kindOf(frame.value)
     const count = childCount(frame.value, kind)
@@ -122,7 +130,14 @@ export function flattenTree(root: unknown, expanded: ReadonlySet<string>): FlatN
     })
 
     if (!isOpen) continue
-    const entries = children(frame.value, kind)
+    // Only the first `room` children can still produce a row.
+    const room = maxRows - rows.length
+    const entries =
+      count <= room
+        ? children(frame.value, kind)
+        : kind === 'array'
+          ? (frame.value as unknown[]).slice(0, room).map((v, i): [number, unknown] => [i, v])
+          : children(frame.value, kind).slice(0, room)
     // Reverse so the first child is popped first.
     for (let i = entries.length - 1; i >= 0; i--) {
       const [key, value] = entries[i]!
@@ -230,11 +245,17 @@ export function toggle(expanded: ReadonlySet<string>, pointer: string): Set<stri
   return next
 }
 
-/** Total node count of a value, containers and scalars alike. */
-export function countNodes(root: unknown): number {
+/**
+ * Total node count of a value, containers and scalars alike.
+ *
+ * Stops once the count passes `limit` and returns `limit + 1`, so a caller can
+ * say "over N" without walking every node of a 20 MB document.
+ */
+export function countNodes(root: unknown, limit = Infinity): number {
   let n = 0
   const stack: unknown[] = [root]
   while (stack.length > 0) {
+    if (n > limit) return n
     const value = stack.pop()
     n++
     const kind = kindOf(value)

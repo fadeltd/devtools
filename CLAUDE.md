@@ -25,7 +25,9 @@ This file holds the rules. The maintainer also keeps `ROADMAP.md` and `TODO.md` 
 
 `src/lib/registry/index.ts` drives the router, the home grid, the sidebar, the command palette, the build-time prerender, and the sitemap.
 
-**Adding a tool = its engine in `packages/core/src/<slug>/` (with an `index.ts` and an `exports` entry in `packages/core/package.json`) + one folder under `src/tools/` + one entry in the registry. Nothing else.** If a change requires hand-editing the router, the sidebar, or the SEO scripts, the abstraction has been broken — fix that instead of working around it.
+**Adding a tool = its engine in `packages/core/src/<slug>/` (with an `index.ts` and an `exports` entry in `packages/core/package.json`) + one folder under `src/tools/` + one entry in the registry + its paragraph in `src/lib/registry/about.ts`. Nothing else.** If a change requires hand-editing the router, the sidebar, or the SEO scripts, the abstraction has been broken — fix that instead of working around it.
+
+`about.ts` holds one honest paragraph per tool (which edge cases it actually handles) for the prerendered HTML. It is a separate module because only `scripts/seo.ts` reads it: in the registry it would ship in the preloaded chunk every visitor downloads. Never import it from `src/`. Typecheck fails when a tool has no paragraph.
 
 The one deliberate exception is the GitHub issue forms. They are static YAML that GitHub reads directly, so nothing in the build can generate them. **When you add a tool or a registry category, add it to the "Which tool?" dropdown in `.github/ISSUE_TEMPLATE/bug_report.yml`**, using the registry `title`. If the new tool changes what this project will or won't build, update the list of standing no's in `tool_request.yml` as well.
 

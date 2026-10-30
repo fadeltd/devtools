@@ -97,6 +97,14 @@ convert('{"a": null}', 'json', 'toml').errors[0] // { code: 'toml-null', path: '
 ```
 
 ```js
+import { jsonTypes } from '@fadeltd/devtools-core/json-types'
+
+jsonTypes('[{"id": 1, "note": null}, {"id": 2, "note": "x", "tag": "a"}]', { target: 'typescript', rootName: 'Row' }).output
+// export type RowList = Row[];
+// export interface Row { id: number; note: string | null; tag?: string; }  (one field per line)
+```
+
+```js
 import { describeCron, nextRuns, parseCron } from '@fadeltd/devtools-core/cron'
 
 const r = parseCron('30 2 * * *')
@@ -115,10 +123,11 @@ await formatSql('select a from t where b = 1', { dialect: 'postgresql', keywordC
 
 | Subpath | What it does |
 |---|---|
-| `/list` | Sort, natural sort, dedupe, shuffle, case, prefix/suffix, filter, number, wrap, join, split, trim, normalise, set operations, slice; chained with per-step line counts |
-| `/json` | Every error with line and column, auto-fixes for almost-JSON, embedded JSON-in-a-string expansion, lossless big numbers, tree flattening, path formats (pointer, dot, jq) |
-| `/diff` | Two-stage line → word diff, ignore whitespace/case/trim, exact stats, unified patch, share-link encoding |
-| `/base64` | UTF-8-correct encode and decode, base64url, input sanitising, magic-byte type sniffing, hex dump, `data:` URI / `<img>` / CSS output |
+| `/list` | Sort, natural sort, dedupe, shuffle, case, prefix/suffix, filter, number, wrap, join, split, trim, normalise, set operations, slice; chained with per-step line counts; validated `#p=` pipeline links |
+| `/json` | Every error with line and column, auto-fixes for almost-JSON, embedded JSON-in-a-string expansion, lossless big numbers, tree flattening, path formats (pointer, dot, jq), size tiers for large input |
+| `/json-types` | TypeScript, Zod or Go types inferred from sample JSON or NDJSON: optional vs nullable, shared and collision-safe type names, int vs float by literal, Go initialisms and gofmt alignment, notes for anything approximated |
+| `/diff` | Two-stage line → word diff, ignore whitespace/case/trim, sorted-lines and key-sorted-JSON views, exact stats, size guard, unified patch, share-link encoding |
+| `/base64` | UTF-8-correct encode and decode, base64url, input sanitising, magic-byte type sniffing, hex dump rows for virtualised views, SVG strip reports, `data:` URI / `<img>` / CSS output |
 | `/id-gen` | Prefixed IDs and passwords from `crypto.getRandomValues` with rejection sampling, UUID v4/v7 and ULID (monotonic), an ID inspector, plus entropy |
 | `/text-stats` | Characters (four meanings), words, sentences (abbreviation-aware), paragraphs, reading time, word and phrase frequency |
 | `/html-text` | Readable text from HTML that keeps paragraphs, lists and tables |
@@ -134,13 +143,14 @@ await formatSql('select a from t where b = 1', { dialect: 'postgresql', keywordC
 | `/sql` | SQL formatting in twelve dialects via `sql-formatter` (optional peer, loaded on first use), errors with line and column, and a dialect-aware minifier |
 | `/css` | CSS/SCSS/Less formatting via Prettier standalone (optional peer, loaded on first use), errors with line and column, and a plain-CSS minifier |
 | `/csv` | RFC 4180 parsing in linear time with positioned issues, delimiter sniffing, column type hints, and JSON / Markdown / CSV / TSV output |
-| `/env` | .env ↔ JSON ↔ shell export ↔ docker env-file: dotenv-accurate parsing, safe quoting, positioned errors, JSON flattening |
+| `/env` | .env ↔ JSON ↔ shell export ↔ docker env-file: dotenv-accurate parsing, shell export files as input, safe quoting, positioned errors, JSON flattening |
 | `/cron` | 5- and 6-field cron and `@` macros, Vixie day OR semantics, next runs in any IANA zone with Vixie DST handling, never-fires detection, English via `cronstrue` |
 | `/escape` | JSON, JavaScript, SQL (standard/MySQL), POSIX shell, regex and HTML-entity escaping and strict unescaping, with positioned errors |
 | `/color` | CSS color parsing with positioned errors; sRGB ↔ HSL ↔ OKLCH; gamut detection and clipping; WCAG contrast and nearest passing foreground |
 | `/qr` | QR payloads for text, URLs and Wi-Fi, encoded to a module matrix, plus a single-path SVG |
 | `/lorem` | Lorem ipsum by exact word, sentence or paragraph count, as text, HTML or Markdown, seedable |
-| `/text` | Line/column offsets and character counts shared by the tools |
+| `/text` | Line/column offsets, character counts, UTF-8 size without encoding and long-line detection, shared by the tools |
+| `/share` | Versioned, URL-safe compact encoding of any JSON value (deflate-raw + base64url) with a decode cap, for links that keep their content in the URL fragment |
 | `/random` | Unbiased crypto random source and a seeded PRNG |
 
 ## Stability

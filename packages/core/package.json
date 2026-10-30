@@ -1,7 +1,7 @@
 {
   "name": "@fadeltd/devtools-core",
   "version": "0.5.0",
-  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, diff, base64, IDs and UUIDs, timestamps, JWT decoding and verification, URL encoding, hashes and HMAC, slugs, text bytes, number bases, Unicode inspection, YAML/JSON/TOML, SQL and CSS formatting, CSV, .env, cron, string escaping, colors and contrast, QR codes and lorem ipsum. Pure functions, no DOM, no network.",
+  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, JSON to TypeScript, Zod and Go types, diff, base64, IDs and UUIDs, timestamps, JWT decoding and verification, URL encoding, hashes and HMAC, slugs, text bytes, number bases, Unicode inspection, YAML/JSON/TOML, SQL and CSS formatting, CSV, .env, cron, string escaping, colors and contrast, QR codes and lorem ipsum. Pure functions, no DOM, no network.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -54,6 +54,10 @@
       "types": "./dist/json/index.d.ts",
       "default": "./dist/json/index.js"
     },
+    "./json-types": {
+      "types": "./dist/json-types/index.d.ts",
+      "default": "./dist/json-types/index.js"
+    },
     "./jwt": {
       "types": "./dist/jwt/index.d.ts",
       "default": "./dist/jwt/index.js"
@@ -77,6 +81,10 @@
     "./random": {
       "types": "./dist/random/index.d.ts",
       "default": "./dist/random/index.js"
+    },
+    "./share": {
+      "types": "./dist/share/index.d.ts",
+      "default": "./dist/share/index.js"
     },
     "./slug": {
       "types": "./dist/slug/index.d.ts",
@@ -161,7 +169,8 @@
     "prettier": "3.9.10",
     "sql-formatter": "15.9.0",
     "typescript": "7.0.2",
-    "vitest": "5.0.1"
+    "vitest": "5.0.1",
+    "zod": "4.6.7"
   },
   "repository": {
     "type": "git",
@@ -190,6 +199,9 @@
     "unicode",
     "jwt verify",
     "jwks",
+    "json to typescript",
+    "zod",
+    "go struct",
     "yaml",
     "toml",
     "sql formatter",

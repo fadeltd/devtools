@@ -16,11 +16,9 @@ import { formatBytes } from '@/lib/util/bytes'
 import { readFileHead } from '@/lib/util/filedrop'
 import {
   base64Length,
-  decodeBytesAs,
   decodeText,
   encodeText,
   type Alphabet,
-  hexDump,
   isImageMime,
   sniffMime,
   firstInvalidIndex,
@@ -31,7 +29,7 @@ import {
   FILE_MAX_BYTES,
   fileTier,
 } from '@fadeltd/devtools-core/base64'
-import { DecodedImage, FileEncoder, type StoredFile } from './FilePanes'
+import { DecodedBinary, DecodedImage, DecodedSvg, FileEncoder, type StoredFile } from './FilePanes'
 
 type Direction = 'encode' | 'decode'
 
@@ -68,11 +66,17 @@ interface Outcome {
   sizeNote: string | null
   /** Decoded bytes that are an image: previewed instead of hex-dumped. */
   image: { bytes: Uint8Array; mime: string; ext: string } | null
+  /** Decoded text that is an SVG: previewed and inspected beside the text. */
+  svg: { bytes: Uint8Array } | null
+  /** Decoded bytes that are neither text nor an image: shown in the hex view. */
+  binary: { bytes: Uint8Array; mime: string; ext: string; known: boolean } | null
 }
+
+const NONE = { image: null, svg: null, binary: null } as const
 
 function compute(s: State): Outcome {
   if (s.text === '') {
-    return { output: '', chips: [], error: null, note: null, sizeNote: null, image: null }
+    return { output: '', chips: [], error: null, note: null, sizeNote: null, ...NONE }
   }
 
   if (s.direction === 'encode') {
@@ -88,7 +92,7 @@ function compute(s: State): Outcome {
       error: null,
       note: null,
       sizeNote: `${formatBytes(raw)} → ${formatBytes(encoded)} (+${Math.round((encoded / raw - 1) * 100)}%)`,
-      image: null,
+      ...NONE,
     }
   }
 
@@ -110,7 +114,7 @@ function compute(s: State): Outcome {
       error: null,
       note: 'This data: URI is percent-encoded text, not base64 — shown decoded as-is.',
       sizeNote: null,
-      image: null,
+      ...NONE,
     }
   }
 
@@ -122,25 +126,29 @@ function compute(s: State): Outcome {
       error: `Invalid character “${bad.char}” at position ${bad.index + 1} (line ${bad.line}, column ${bad.column}).`,
       note: null,
       sizeNote: null,
-      image: null,
+      ...NONE,
     }
   }
 
   const result = decodeText(clean.payload, { alphabet: 'auto', lenient: s.lenient })
 
   if (result.ok) {
+    // SVG is text, so it lands here rather than on the image path. The sniff
+    // reads only the first 1 KB.
+    const isSvg = sniffMime(result.bytes).mime === 'image/svg+xml'
     return {
       output: result.text,
       chips,
       error: null,
       note: null,
-      sizeNote: `${formatBytes(clean.payload.length)} → ${formatBytes(result.bytes.length)}`,
-      image: null,
+      sizeNote: `${formatBytes(clean.payload.length)} → ${formatBytes(result.bytes.length)}${isSvg ? ' SVG' : ''}`,
+      ...NONE,
+      svg: isSvg ? { bytes: result.bytes } : null,
     }
   }
 
   if (result.reason === 'invalid-base64') {
-    return { output: '', chips, error: result.message, note: null, sizeNote: null, image: null }
+    return { output: '', chips, error: result.message, note: null, sizeNote: null, ...NONE }
   }
 
   // Valid base64, but the bytes are not UTF-8 text. Show what it actually is
@@ -153,19 +161,22 @@ function compute(s: State): Outcome {
       error: null,
       note: null,
       sizeNote: `${formatBytes(result.bytes.length)} ${sniffed.mime}`,
+      ...NONE,
       image: { bytes: result.bytes, mime: sniffed.mime, ext: sniffed.ext },
     }
   }
-  const asFallback = decodeBytesAs(result.bytes, s.fallbackEncoding)
+  // The hex view and the legacy-encoding text both live in the output pane
+  // and carry their own Copy; the toolbar's Copy and Swap have nothing to take.
   return {
-    output: `${hexDump(result.bytes)}\n\n--- decoded as ${s.fallbackEncoding} ---\n${asFallback}`,
+    output: '',
     chips,
     error: null,
     note:
-      `These bytes are not valid UTF-8. Detected ${sniffed.mime}` +
-      `${sniffed.confidence === 'text' ? ' (heuristic)' : ''} — showing a hex dump.`,
+      `These bytes are not valid UTF-8. Detected ${sniffed.confidence === 'none' ? 'no known type' : sniffed.mime}` +
+      `${sniffed.confidence === 'text' ? ' (heuristic)' : ''} — showing a hex view.`,
     sizeNote: `${formatBytes(result.bytes.length)} of binary`,
-    image: null,
+    ...NONE,
+    binary: { bytes: result.bytes, mime: sniffed.mime, ext: sniffed.ext, known: sniffed.confidence !== 'none' },
   }
 }
 
@@ -402,6 +413,16 @@ export default function Base64Tool() {
                     </div>
                   ) : outcome.image !== null ? (
                     <DecodedImage bytes={outcome.image.bytes} mime={outcome.image.mime} ext={outcome.image.ext} />
+                  ) : outcome.binary !== null ? (
+                    <DecodedBinary
+                      bytes={outcome.binary.bytes}
+                      mime={outcome.binary.mime}
+                      ext={outcome.binary.ext}
+                      known={outcome.binary.known}
+                      fallbackEncoding={deferred.fallbackEncoding}
+                    />
+                  ) : outcome.svg !== null ? (
+                    <DecodedSvg bytes={outcome.svg.bytes} text={outcome.output} />
                   ) : (
                     <CodeArea value={outcome.output} readOnly placeholder="Output appears here" />
                   )}

@@ -175,3 +175,50 @@ describe('kindOf', () => {
     ])
   })
 })
+
+describe('flattenTree — maxRows', () => {
+  it('stops at the cap, keeping the pre-order prefix', () => {
+    const big = Array.from({ length: 100_000 }, (_, i) => ({ i }))
+    const { expanded } = allContainerPointers(big, Infinity)
+    const full = flattenTree(big, expanded)
+    const capped = flattenTree(big, expanded, 1_000)
+    expect(capped).toHaveLength(1_000)
+    expect(capped).toEqual(full.slice(0, 1_000))
+  })
+
+  it('is the same as uncapped when the cap is not reached', () => {
+    const { expanded } = allContainerPointers(doc, Infinity)
+    expect(flattenTree(doc, expanded, 1_000)).toEqual(flattenTree(doc, expanded))
+  })
+
+  it('caps a wide object as well as an array', () => {
+    const wide = Object.fromEntries(Array.from({ length: 500 }, (_, i) => [`k${i}`, i]))
+    const rows = flattenTree(wide, new Set(['']), 10)
+    expect(rows).toHaveLength(10)
+    expect(rows[9]!.key).toBe('k8')
+  })
+
+  it('agrees with the uncapped rows on any document and cap', () => {
+    fc.assert(
+      fc.property(fc.jsonValue({ maxDepth: 4 }), fc.nat(60), (value, cap) => {
+        const { expanded } = allContainerPointers(value, Infinity)
+        expect(flattenTree(value, expanded, cap)).toEqual(flattenTree(value, expanded).slice(0, cap))
+      }),
+    )
+  })
+})
+
+describe('countNodes', () => {
+  it('counts every node, containers and scalars alike', () => {
+    // root, a, x/y, ~k, its 3 items, list, 2 objects, 2 ids
+    expect(countNodes(doc)).toBe(12)
+  })
+
+  it('stops just past the limit instead of walking everything', () => {
+    const big = Array.from({ length: 10_000 }, (_, i) => ({ i }))
+    expect(countNodes(big)).toBe(20_001)
+    expect(countNodes(big, 100)).toBe(101)
+    expect(countNodes(doc, 12)).toBe(12)
+    expect(countNodes(doc, 11)).toBe(12)
+  })
+})

@@ -26,6 +26,14 @@ const ROW_NARROW = 44
 const ROW_WIDE = 22
 const INDENT = 14
 
+/**
+ * A 20 MB document can hold millions of nodes. Rows are built only up to this
+ * many -- the same cap "Expand all" uses -- and the node count stops here, so
+ * neither walks the whole value on every expand or collapse.
+ */
+const MAX_ROWS = 200_000
+const COUNT_LIMIT = 1_000_000
+
 function subscribeNarrow(onChange: () => void) {
   const mq = window.matchMedia(NARROW)
   mq.addEventListener('change', onChange)
@@ -110,8 +118,12 @@ export function TreeView({
     setExpansion(current)
   }
 
-  const rows = useMemo(() => flattenTree(value, current.expanded), [value, current.expanded])
-  const total = useMemo(() => countNodes(value), [value])
+  const rows = useMemo(
+    () => flattenTree(value, current.expanded, MAX_ROWS),
+    [value, current.expanded],
+  )
+  const rowsCapped = rows.length >= MAX_ROWS
+  const total = useMemo(() => countNodes(value, COUNT_LIMIT), [value])
 
   const [selected, setSelected] = useState<string | null>(null)
   const selectedIndex = useMemo(
@@ -205,8 +217,12 @@ export function TreeView({
     <div className="flex min-h-0 w-full flex-1 flex-col">
       <div className="flex shrink-0 flex-wrap items-center gap-x-2 border-b border-border px-3 py-1">
         <span className="font-mono text-[11px] text-faint">
-          {formatCount(total)} {total === 1 ? 'node' : 'nodes'}
-          {current.capped && ` · expanded the first ${formatCount(rows.length)} rows`}
+          {total > COUNT_LIMIT
+            ? `over ${formatCount(COUNT_LIMIT)} nodes`
+            : `${formatCount(total)} ${total === 1 ? 'node' : 'nodes'}`}
+          {rowsCapped
+            ? ` · showing the first ${formatCount(MAX_ROWS)} rows`
+            : current.capped && ` · expanded the first ${formatCount(rows.length)} rows`}
         </span>
         <span className="flex-1" />
         <Button

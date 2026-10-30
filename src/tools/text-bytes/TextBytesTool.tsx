@@ -1,3 +1,4 @@
+import type { Remote } from 'comlink'
 import { useDeferredValue, useMemo } from 'react'
 import { ArrowLeftRight, Download } from 'lucide-react'
 import { ToolFrame } from '@/components/layout/ToolFrame'
@@ -14,31 +15,13 @@ import { copyText } from '@/lib/util/clipboard'
 import { formatCount } from '@/lib/util/bytes'
 import { downloadBlob } from '@/lib/util/download'
 import { headOf, INLINE_MAX_BYTES } from '@fadeltd/devtools-core/base64'
-import {
-  decodeText,
-  encodeText,
-  type ByteFormat,
-  type Detection,
-  type HexPrefix,
-  type InputFormat,
-  type Separator,
-} from '@fadeltd/devtools-core/text-bytes'
+import type { ByteFormat, HexPrefix, InputFormat, Separator } from '@fadeltd/devtools-core/text-bytes'
+import { hasLongLine } from '@fadeltd/devtools-core/text'
+import { useWorkerJob } from '@/lib/worker/useWorkerJob'
+import { FORMAT_LABELS, type Fallback, type Outcome, type TextBytesInput } from './shared'
+import type { TextBytesApi } from './text-bytes.worker'
 
-type Direction = 'encode' | 'decode'
-type Fallback = 'replacement' | 'latin1'
-
-interface State {
-  input: string
-  direction: Direction
-  /** Kept apart from decodeFormat so 'auto' never leaks into the encoder. */
-  format: ByteFormat
-  decodeFormat: InputFormat
-  separator: Separator
-  uppercase: boolean
-  prefix: HexPrefix
-  perLine: number
-  fallback: Fallback
-}
+type State = TextBytesInput
 
 const INITIAL: State = {
   input: '',
@@ -52,36 +35,15 @@ const INITIAL: State = {
   fallback: 'replacement',
 }
 
-const FORMAT_LABELS: Record<ByteFormat, string> = {
-  binary: 'Binary',
-  hex: 'Hex',
-  decimal: 'Decimal',
-  octal: 'Octal',
+const EMPTY: Outcome = { output: '', error: null, fallback: null, stats: null, notes: [], format: null }
+
+// Module-level so useWorkerJob sees stable references.
+function spawnCodec() {
+  return new Worker(new URL('./text-bytes.worker.ts', import.meta.url), { type: 'module' })
 }
 
-const DETECTION_REASONS: Record<Detection['reason'], string> = {
-  prefix: 'by prefix',
-  'only-valid': 'only match',
-  cleanest: 'most text-like',
-  precedence: 'tie-break',
-  'none-valid': 'closest match',
-}
-
-interface Note {
-  tone: 'neutral' | 'warn'
-  text: string
-}
-
-interface Outcome {
-  output: string
-  /** Shown in the output pane in place of the output: the input cannot be read. */
-  error: string | null
-  /** Set when the output is a stand-in for text that does not exist. */
-  fallback: { label: string; problem: string } | null
-  stats: string | null
-  notes: Note[]
-  /** The format bytes were read as, for Swap. */
-  format: ByteFormat | null
+function runInWorker(api: Remote<TextBytesApi>, input: TextBytesInput): Promise<Outcome> {
+  return api.run(input)
 }
 
 /**
@@ -93,82 +55,20 @@ interface Outcome {
  */
 const PREVIEW_CHARS = 64 * 1024
 
-const plural = (n: number, one: string) => `${formatCount(n)} ${one}${n === 1 ? '' : 's'}`
-
-/** Two short badges rather than one long one: badges do not wrap, and a phone is 390px wide. */
-function detectionNotes(d: Detection): Note[] {
-  const notes: Note[] = [{ tone: 'neutral', text: `Detected ${FORMAT_LABELS[d.format].toLowerCase()} · ${DETECTION_REASONS[d.reason]}` }]
-  if (d.alsoValid.length > 0) {
-    // The guess could be wrong, so say so where it can be seen: no tooltip on touch.
-    const others = d.alsoValid.map((f) => FORMAT_LABELS[f].toLowerCase()).join(' / ')
-    notes.push({ tone: 'warn', text: `also valid as ${others}` })
-  }
-  return notes
-}
-
-function compute(s: State): Outcome {
-  const empty: Outcome = { output: '', error: null, fallback: null, stats: null, notes: [], format: null }
-  if (s.input === '') return empty
-
-  if (s.direction === 'encode') {
-    const r = encodeText(s.input, {
-      format: s.format,
-      separator: s.separator,
-      uppercase: s.uppercase,
-      prefix: s.prefix,
-      perLine: s.perLine,
-    })
-    const notes: Note[] = []
-    if (r.loneSurrogates > 0) {
-      notes.push({
-        tone: 'warn',
-        text: `${plural(r.loneSurrogates, 'lone surrogate')} encoded as U+FFFD`,
-      })
-    }
-    return {
-      ...empty,
-      output: r.output,
-      stats: `${plural(r.charCount, 'char')} → ${plural(r.byteCount, 'byte')}`,
-      notes,
-      format: s.format,
-    }
-  }
-
-  const r = decodeText(s.input, s.decodeFormat)
-  const notes: Note[] = r.detection !== null ? detectionNotes(r.detection) : []
-
-  if (r.ok) {
-    if (r.bom) notes.push({ tone: 'neutral', text: 'starts with a BOM (kept)' })
-    return {
-      ...empty,
-      output: r.text,
-      stats: `${plural(r.bytes.length, 'byte')} → ${plural(r.charCount, 'char')}`,
-      notes,
-      format: r.format,
-    }
-  }
-
-  if (r.reason === 'syntax') return { ...empty, error: r.error.message, notes, format: r.format }
-
-  return {
-    ...empty,
-    output: s.fallback === 'latin1' ? r.latin1 : r.replacement,
-    fallback: {
-      label: s.fallback === 'latin1' ? 'Not the text: bytes as Latin-1' : 'Not the text: bad bytes as �',
-      problem: r.invalid.message,
-    },
-    stats: plural(r.bytes.length, 'byte'),
-    notes,
-    format: r.format,
-  }
-}
-
 export default function TextBytesTool() {
   useToolUsageTracker('text-bytes')
   const { state, setState, reset } = useToolState<State>('text-bytes', INITIAL)
 
+  // The worker runs against a deferred snapshot, so a keystroke never waits on
+  // an encode; the last finished outcome stays on screen meanwhile.
   const deferred = useDeferredValue(state)
-  const outcome = useMemo(() => compute(deferred), [deferred])
+  const job = useWorkerJob(spawnCodec, runInWorker, deferred)
+  const outcome = job.result ?? EMPTY
+  // Swap must not feed back an output computed for older input.
+  const current = job.status === 'done' && deferred === state
+  const unsettled = job.status === 'slow' || job.status === 'cancelled' || job.status === 'error'
+  // On the keystroke, not deferred: a paste must lay out unwrapped first time.
+  const noWrap = useMemo(() => hasLongLine(state.input), [state.input])
   const encoding = state.direction === 'encode'
   // Characters, not bytes: what the textarea pays for is string length, and
   // the encoded output is ASCII anyway.
@@ -186,7 +86,7 @@ export default function TextBytesTool() {
     // capped output in the input textarea: exactly what the cap prevents.
     if (capped) return
     setState((p) => {
-      const usable = outcome.error === null && outcome.fallback === null && outcome.output !== ''
+      const usable = current && outcome.error === null && outcome.fallback === null && outcome.output !== ''
       if (p.direction === 'encode') {
         // Decode with the format just written, not 'auto': the output of
         // "65 66" is ambiguous, but we know exactly what it is.
@@ -336,6 +236,7 @@ export default function TextBytesTool() {
           <CodeArea
             value={state.input}
             onChange={(e) => set('input', e.target.value)}
+            wrap={noWrap ? 'off' : undefined}
             placeholder={
               encoding
                 ? 'Type or paste text. It is encoded as UTF-8…'
@@ -362,7 +263,7 @@ export default function TextBytesTool() {
                 and Download include all of it.
               </p>
             )}
-            {(outcome.stats !== null || outcome.notes.length > 0) && (
+            {(outcome.stats !== null || outcome.notes.length > 0 || unsettled) && (
               <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
                 {outcome.stats !== null && <span>{outcome.stats}</span>}
                 {outcome.notes.map((note) => (
@@ -370,6 +271,20 @@ export default function TextBytesTool() {
                     {note.text}
                   </Badge>
                 ))}
+                {job.status === 'slow' && (
+                  <>
+                    <Badge tone="warn">Still {encoding ? 'encoding' : 'decoding'} after 2s</Badge>
+                    <Button variant="danger" onClick={job.cancel}>
+                      Cancel
+                    </Button>
+                  </>
+                )}
+                {job.status === 'cancelled' && (
+                  <Badge tone="del" title="Edit the input or an option to run again">
+                    Cancelled — showing the last finished result
+                  </Badge>
+                )}
+                {job.status === 'error' && <Badge tone="del">{job.error}</Badge>}
               </div>
             )}
           </div>

@@ -3,7 +3,7 @@ import { ArrowLeftRight, Check, ChevronDown, ChevronUp, FileDiff, Link, Upload }
 import { ToolFrame } from '@/components/layout/ToolFrame'
 import { Badge } from '@/components/ui/Badge'
 import { Button, Segmented } from '@/components/ui/Button'
-import { Toggle } from '@/components/ui/Select'
+import { Select, Toggle } from '@/components/ui/Select'
 import { useToolState } from '@/lib/persist/useToolState'
 import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
@@ -15,7 +15,6 @@ import {
   ignoreLabel,
   type IgnoreOptions,
   toUnifiedPatch,
-  assessSize,
   diffStats,
   MAX_SHARE_CHARS,
   SHARE_PARAM,
@@ -23,6 +22,7 @@ import {
   encodeShare,
 } from '@fadeltd/devtools-core/diff'
 import { diffFor } from './engine'
+import { prepareView, TRANSFORM_BANNERS, TRANSFORM_LABELS, type Transform } from './view'
 
 interface State {
   left: string
@@ -34,6 +34,8 @@ interface State {
   ignoreWhitespace: boolean
   ignoreCase: boolean
   trim: boolean
+  /** A rewrite of both sides before diffing. The input itself is never changed. */
+  transform: Transform
 }
 
 const INITIAL: State = {
@@ -44,6 +46,19 @@ const INITIAL: State = {
   ignoreWhitespace: false,
   ignoreCase: false,
   trim: false,
+  transform: 'none',
+}
+
+const TRANSFORMS: readonly Transform[] = ['none', 'sort-lines', 'json']
+
+function isTransform(v: string): v is Transform {
+  return (TRANSFORMS as readonly string[]).includes(v)
+}
+
+const PATCH_LABELS: Record<Transform, string> = {
+  none: 'Patch',
+  'sort-lines': 'Patch (sorted view)',
+  json: 'Patch (JSON view)',
 }
 
 function ignoreOf(s: State): IgnoreOptions {
@@ -121,14 +136,22 @@ export default function DiffTool() {
         ? { tooLarge: encoded.value.length }
         : { url: window.location.origin + window.location.pathname + SHARE_PREFIX + encoded.value }
   }
-  const size = useMemo(() => assessSize(deferred.left, deferred.right), [deferred])
 
+  // What the panes show, and whether they may show it at all, decided on the
+  // live text: see prepareView. Only the stats below run on a deferred copy.
+  const { left, right, transform } = state
+  const view = useMemo(() => prepareView(left, right, transform), [left, right, transform])
+  const size = view.size
+  const transforming = transform !== 'none'
+
+  const deferredView = useDeferredValue(view)
   const stats = useMemo(() => {
-    if (size.tier === 'refuse') return null
-    if (deferred.left === '' && deferred.right === '') return null
-    const settings = { ignore: ignoreOf(deferred), refine: size.tier === 'ok' }
-    return diffStats(deferred.left, deferred.right, diffFor(deferred.left, deferred.right, settings).lines)
-  }, [deferred, size.tier])
+    const { left: a, right: b, size: verdict } = deferredView
+    if (verdict.tier === 'refuse') return null
+    if (a === '' && b === '') return null
+    const settings = { ignore: ignoreOf(deferred), refine: verdict.tier === 'ok' }
+    return diffStats(a, b, diffFor(a, b, settings).lines)
+  }, [deferredView, deferred])
 
   const ignoring = ignoreLabel(ignoreOf(state))
 
@@ -144,7 +167,8 @@ export default function DiffTool() {
   function copyPatch() {
     // Built and written inside the click handler: Safari refuses a clipboard
     // write that happens anywhere else.
-    const patch = toUnifiedPatch(state.left, state.right)
+    // Of what is shown: in a transform, the sorted text, as the label says.
+    const patch = toUnifiedPatch(view.left, view.right)
     if (patch === null) {
       setError('These inputs are too different to build a patch in time. Use `diff -u` on the command line.')
       return
@@ -262,6 +286,21 @@ export default function DiffTool() {
           <Toggle checked={state.trim} onChange={(v) => setState((p) => ({ ...p, trim: v }))}>
             Trim
           </Toggle>
+          <Select
+            value={transform}
+            onChange={(e) => {
+              const next = e.target.value
+              if (isTransform(next)) setState((p) => ({ ...p, transform: next }))
+            }}
+            aria-label="Compare as"
+            title="Rewrite both sides before comparing. Your text is kept as written; the view is read-only meanwhile."
+          >
+            {TRANSFORMS.map((t) => (
+              <option key={t} value={t}>
+                {TRANSFORM_LABELS[t]}
+              </option>
+            ))}
+          </Select>
 
           {stats !== null && (
             <span className="flex items-center gap-1.5 font-mono text-[12px]">
@@ -305,15 +344,19 @@ export default function DiffTool() {
           </Button>
           <Button
             onClick={copyPatch}
-            disabled={state.left === state.right || size.tier === 'refuse'}
-            title="Copy as a unified patch. Always exact: the Ignore toggles do not apply."
+            disabled={view.left === view.right || size.tier === 'refuse'}
+            title={
+              transforming
+                ? 'Copy the shown, rewritten text as a unified patch, not your original text. The Ignore toggles do not apply.'
+                : 'Copy as a unified patch. Always exact: the Ignore toggles do not apply.'
+            }
           >
             {patchCopied ? (
               <Check size={14} className="text-add" aria-hidden />
             ) : (
               <FileDiff size={14} aria-hidden />
             )}
-            {patchCopied ? 'Copied' : 'Patch'}
+            {patchCopied ? 'Copied' : PATCH_LABELS[transform]}
           </Button>
           <Button
             onClick={copyLink}
@@ -347,6 +390,25 @@ export default function DiffTool() {
             </Button>
           </div>
         )}
+        {transforming && (
+          // Not dismissible: while it is up, the panes are not your text.
+          <div className="shrink-0 border-b border-border px-3 py-1.5 text-[12px]">
+            <div className="flex items-center justify-between gap-3 text-muted">
+              <span>{TRANSFORM_BANNERS[transform]} Both sides are read-only; your text is unchanged.</span>
+              <Button onClick={() => setState((p) => ({ ...p, transform: 'none' }))}>Show original</Button>
+            </div>
+            {view.problems.map((problem) => (
+              <div key={problem} className="text-del">
+                {problem}
+              </div>
+            ))}
+            {view.notes.map((note) => (
+              <div key={note} className="text-warn">
+                {note}
+              </div>
+            ))}
+          </div>
+        )}
         {size.reason !== null && (
           <div className="shrink-0 border-b border-border px-3 py-1.5 text-[12px] text-warn">
             {size.reason}
@@ -363,14 +425,16 @@ export default function DiffTool() {
           <div className="min-h-0 flex-1">
             <MergePane
               onReady={onReady}
-              left={state.left}
-              right={state.right}
+              left={view.left}
+              right={view.right}
               mode={effectiveMode}
               wrapLines={state.wrapLines}
               highlightChanges={size.tier === 'ok'}
               ignore={ignoreOf(state)}
+              readOnly={transforming}
               onChangeLeft={(value) => setState((p) => ({ ...p, left: value }))}
               onChangeRight={(value) => setState((p) => ({ ...p, right: value }))}
+              onRejectEdit={setError}
             />
           </div>
         )}

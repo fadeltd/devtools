@@ -6,7 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- `/json-types`: `jsonTypes(text, { target, rootName, declaration, inferTypes, pointers })` generates TypeScript, Zod (syntax valid in v3 and v4) or Go from sample JSON, JSONC or NDJSON. Optional (missing) and nullable (`null`) fields are kept apart; integers and floats are told apart by literal via lossless parsing; integer width is tracked (`safe`, `int64`, `uint64`, beyond); identical structures share one named type; Go output uses golint initialisms and gofmt column alignment. Returns positioned parse errors and path-tagged notes for anything approximated; never throws. Also exports `inferShape`.
+- `/share`: `encodeCompact` / `decodeCompact` turn any JSON value into a versioned, URL-safe `1.<base64url of deflate-raw>` string and back, with a cap on decoded size; decoding never throws. `fragmentValue` reads `#key=` from a location hash.
+- `/list`: `encodePipeline` / `decodePipeline` for `#p=` pipeline links, and strict `parseOp` / `parseOps` / `parseSharedSteps` validators that rebuild every op field by field and reject anything malformed.
+- `/diff`: `transformForDiff(text, 'sort-lines' | 'json', { lossless })` for comparing sorted or key-sorted JSON views, and the size thresholds `MAX_DIFF_CHARS`, `MAX_DIFF_LINE_CHARS`, `LINE_ONLY_CHARS` with `longestLineOf`.
+- `/base64`: `hexRow`, `formatHexRow`, `hexDumpRows` and `hexRowCount` for virtualised hex views (`hexDump` uses them, same output); `summarizeRemovals` groups sanitiser removals into a strip report; `standaloneSvg`, `svgRoot` and `SVG_INSPECT_MAX_BYTES`.
+- `/json`: `assessJsonSize` / `jsonSizeTier` (`ok` up to 1 MB, `large` up to 50 MB, then `refuse`) and `outputHead`; `analyze` reports at most `MAX_ISSUES` problems with a `moreIssues` flag and windows long snippet lines; `flattenTree` and `countNodes` take limits.
+- `/text`: `utf8Length` (UTF-8 size without encoding) and `hasLongLine` with `NO_WRAP_LINE`.
+- `/env`: `'shell'` input format: `convertEnv` reads shell export files (BOM and CRLF normalised) and `detectEnvFormat` picks it when dotenv cannot read the text.
+
+### Changed
+- `/diff`: `assessSize` is much faster on large input; share links are built on `/share` (same format, same API).
+- `/json`: `analyze` no longer builds a parse tree to find errors, and `stripJsonc` copies in slices, which makes both several times faster on large input.
+- `/env`: `parseShellExports` accepts several `;`-separated commands on one line.
+
+### Fixed
+- `/list`: a filter line-number range such as `1-999999999999` no longer loops over numbers past the end of the document.
 
 ## [0.5.0] — 2026-10-29
 
