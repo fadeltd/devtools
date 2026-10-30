@@ -148,6 +148,7 @@ await formatSql('select a from t where b = 1', { dialect: 'postgresql', keywordC
 | `/escape` | JSON, JavaScript, SQL (standard/MySQL), POSIX shell, regex and HTML-entity escaping and strict unescaping, with positioned errors |
 | `/color` | CSS color parsing with positioned errors; sRGB ↔ HSL ↔ OKLCH; gamut detection and clipping; WCAG contrast and nearest passing foreground |
 | `/qr` | QR payloads for text, URLs and Wi-Fi, encoded to a module matrix, plus a single-path SVG |
+| `/regex` | Flag checks, readable compile errors, `/pattern/flags` literals, every match with line, column and named group spans (JavaScript semantics, capped), and `replace` with a count and warnings for references that silently do nothing |
 | `/lorem` | Lorem ipsum by exact word, sentence or paragraph count, as text, HTML or Markdown, seedable |
 | `/text` | Line/column offsets, character counts, UTF-8 size without encoding and long-line detection, shared by the tools |
 | `/share` | Versioned, URL-safe compact encoding of any JSON value (deflate-raw + base64url) with a decode cap, for links that keep their content in the URL fragment |

@@ -82,6 +82,10 @@
       "types": "./dist/random/index.d.ts",
       "default": "./dist/random/index.js"
     },
+    "./regex": {
+      "types": "./dist/regex/index.d.ts",
+      "default": "./dist/regex/index.js"
+    },
     "./share": {
       "types": "./dist/share/index.d.ts",
       "default": "./dist/share/index.js"
