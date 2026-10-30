@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.7.0] — 2026-10-30
+
 ### Added
 - `/json`: `foldRanges(text, { minDepth })` lists every multi-line object and array in a JSON text with editor fold bounds (inside the brackets) and depth, in one linear scan that only tracks strings and brackets (~13 ms for 2 MB of formatted JSON).
 

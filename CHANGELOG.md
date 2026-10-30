@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.15.0] — 2026-10-30
+
 ### Added
 - JSON Formatter: Find in the formatted output (the Find button, or Ctrl/Cmd+F in the output), which searches the whole document including folded parts, where the browser's own find only sees the lines on screen. Plain-text search, with match-case and whole-word options.
 
