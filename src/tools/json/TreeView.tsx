@@ -18,7 +18,7 @@ import {
   toJsonPointer,
   toJqPath,
 } from '@fadeltd/devtools-core/json'
-import { useNarrow } from './narrow'
+import { useNarrow } from '@/lib/util/narrow'
 
 // Matches the palette rows: a 44px touch target below md, the 22px code-table
 // grid from DESIGN.md above it.

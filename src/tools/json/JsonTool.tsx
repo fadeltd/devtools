@@ -62,7 +62,7 @@ import {
 } from '@fadeltd/devtools-core/json'
 import { hasLongLine } from '@fadeltd/devtools-core/text'
 import type { FoldApi } from './FoldableOutput'
-import { useNarrow } from './narrow'
+import { useNarrow } from '@/lib/util/narrow'
 import { TreeView } from './TreeView'
 
 // CodeMirror stays out of this chunk: it loads the first time formatted output
