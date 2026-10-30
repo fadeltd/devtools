@@ -21,6 +21,7 @@ import type {
   Target,
   TypeNote,
 } from '@fadeltd/devtools-core/json-types'
+import { hasLongLine } from '@fadeltd/devtools-core/text'
 import type { JsonTypesApi } from './json-types.worker'
 
 interface State {
@@ -45,20 +46,6 @@ const TARGETS: Record<Target, string> = { typescript: 'TypeScript', zod: 'Zod', 
 
 /** Notes about what the output had to approximate; everything else is info. */
 const WARN_CODES = new Set<TypeNote['code']>(['big-integer', 'bad-go-tag', 'depth'])
-
-/** Past this, a soft-wrapped line re-lays out for seconds per keystroke. */
-const NO_WRAP_LINE = 100_000
-
-function hasLongLine(text: string): boolean {
-  if (text.length <= NO_WRAP_LINE) return false
-  let start = 0
-  for (;;) {
-    const end = text.indexOf('\n', start)
-    if ((end === -1 ? text.length : end) - start > NO_WRAP_LINE) return true
-    if (end === -1) return false
-    start = end + 1
-  }
-}
 
 interface Input {
   text: string

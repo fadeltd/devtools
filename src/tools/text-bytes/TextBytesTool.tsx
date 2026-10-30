@@ -16,8 +16,9 @@ import { formatCount } from '@/lib/util/bytes'
 import { downloadBlob } from '@/lib/util/download'
 import { headOf, INLINE_MAX_BYTES } from '@fadeltd/devtools-core/base64'
 import type { ByteFormat, HexPrefix, InputFormat, Separator } from '@fadeltd/devtools-core/text-bytes'
+import { hasLongLine } from '@fadeltd/devtools-core/text'
 import { useWorkerJob } from '@/lib/worker/useWorkerJob'
-import { FORMAT_LABELS, hasLongLine, NO_WRAP_LINE, type Fallback, type Outcome, type TextBytesInput } from './shared'
+import { FORMAT_LABELS, type Fallback, type Outcome, type TextBytesInput } from './shared'
 import type { TextBytesApi } from './text-bytes.worker'
 
 type State = TextBytesInput
@@ -67,7 +68,7 @@ export default function TextBytesTool() {
   const current = job.status === 'done' && deferred === state
   const unsettled = job.status === 'slow' || job.status === 'cancelled' || job.status === 'error'
   // On the keystroke, not deferred: a paste must lay out unwrapped first time.
-  const noWrap = useMemo(() => hasLongLine(state.input, NO_WRAP_LINE), [state.input])
+  const noWrap = useMemo(() => hasLongLine(state.input), [state.input])
   const encoding = state.direction === 'encode'
   // Characters, not bytes: what the textarea pays for is string length, and
   // the encoded output is ASCII anyway.

@@ -11,6 +11,8 @@
  * string in a textarea freezes layout.
  */
 
+import { utf8Length } from '../text/size.ts'
+
 /** Above this, the `large` tier: validation and formatting only. */
 export const JSON_LARGE_BYTES = 1024 * 1024
 /** Above this, the `refuse` tier: nothing is parsed at all. */
@@ -26,38 +28,6 @@ export interface JsonSizeVerdict {
   reason: string | null
 }
 
-/**
- * UTF-8 byte length without encoding anything.
- *
- * `new Blob([text]).size` and `TextEncoder` both materialise the bytes -- a
- * 20 MB copy on every call. Here every UTF-16 code unit starts at one byte and
- * only runs of non-ASCII are visited, found by a regex so the ASCII stretches
- * are skipped natively: ~14 ms on 20 MB of ASCII, against ~47 ms for a
- * charCodeAt loop over all of it. A lone surrogate counts 3 bytes, because that
- * is what the encoder replaces it with (U+FFFD).
- */
-export function utf8Length(text: string): number {
-  let bytes = text.length
-  const re = /[\u0080-\uffff]+/g
-  let m: RegExpExecArray | null
-  while ((m = re.exec(text)) !== null) {
-    const run = m[0]
-    for (let i = 0; i < run.length; i++) {
-      const c = run.charCodeAt(i)
-      if (c < 0x800) {
-        bytes += 1 // 2 bytes
-      } else if (c >= 0xd800 && c <= 0xdbff && i + 1 < run.length) {
-        const next = run.charCodeAt(i + 1)
-        // A pair is 2 units and 4 bytes; a lone high surrogate is 1 unit and 3 bytes.
-        if (next >= 0xdc00 && next <= 0xdfff) i++
-        bytes += 2
-      } else {
-        bytes += 2 // 3 bytes, including a lone surrogate
-      }
-    }
-  }
-  return bytes
-}
 
 function megabytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -76,7 +46,7 @@ export function jsonSizeTier(bytes: number): JsonSizeVerdict {
     return {
       tier: 'large',
       bytes,
-      reason: `Large input (${megabytes(bytes)}): auto-fixes and embedded-JSON expansion are off.`,
+      reason: `Large input (${megabytes(bytes)}): auto-fixes and embedded-JSON expansion are off, and editing may feel slow. Past ${megabytes(JSON_REFUSE_BYTES)} nothing is parsed.`,
     }
   }
   return { tier: 'ok', bytes, reason: null }

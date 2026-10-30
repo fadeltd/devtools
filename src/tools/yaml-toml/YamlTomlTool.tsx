@@ -21,7 +21,7 @@ import type {
   Message,
   SourceFormat,
 } from '@fadeltd/devtools-core/yaml-toml'
-import { utf8Length } from './utf8'
+import { utf8Length } from '@fadeltd/devtools-core/text'
 import type { YamlTomlApi, YamlTomlRunInput } from './yaml-toml.worker'
 
 interface State {

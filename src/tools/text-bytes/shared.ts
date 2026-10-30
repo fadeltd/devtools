@@ -40,31 +40,3 @@ export const FORMAT_LABELS: Record<ByteFormat, string> = {
   decimal: 'Decimal',
   octal: 'Octal',
 }
-
-/**
- * Past this many characters on one line, the input stops soft-wrapping.
- *
- * Chrome re-lays out a whole paragraph on every edit, and a soft-wrapped
- * paragraph of a few MB takes seconds: measured on a 3 MB single-line paste,
- * 2.2–8 s from keystroke to paint, against 0.2–0.8 s with `wrap="off"` and
- * ~0.1 s for the same 3 MB in 100-character lines. Below ~100k characters
- * wrapping costs little, and wrapped text is easier to read.
- */
-export const NO_WRAP_LINE = 100_000
-
-/**
- * Whether any line is longer than `limit`. One `indexOf` per line, so it is
- * cheap enough to run on the keystroke itself, which lets a paste lay out
- * unwrapped the first time rather than paying for a wrapped layout once.
- */
-export function hasLongLine(text: string, limit: number): boolean {
-  if (text.length <= limit) return false
-  let start = 0
-  for (;;) {
-    const nl = text.indexOf('\n', start)
-    const end = nl < 0 ? text.length : nl
-    if (end - start > limit) return true
-    if (nl < 0) return false
-    start = nl + 1
-  }
-}

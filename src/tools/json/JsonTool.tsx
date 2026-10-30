@@ -56,6 +56,7 @@ import {
   type PathSegment,
   type Selection,
 } from '@fadeltd/devtools-core/json'
+import { hasLongLine } from '@fadeltd/devtools-core/text'
 import { TreeView } from './TreeView'
 
 type Mode = 'format' | 'minify' | 'escape' | 'unescape'
@@ -301,6 +302,10 @@ export default function JsonTool() {
   const { state, setState, reset } = useToolState<State>('json', INITIAL)
 
   const deferred = useDeferredValue(state)
+
+  // Minified JSON is one line; soft-wrapping a multi-MB line costs seconds per
+  // keystroke. On the keystroke, not deferred, so a paste lays out unwrapped.
+  const noWrap = useMemo(() => hasLongLine(state.text), [state.text])
 
   // Size first, on the deferred text: one pass, no 20 MB encode per keystroke.
   // Above 1 MB the expensive extras are off; above 50 MB nothing is parsed.
@@ -572,6 +577,7 @@ export default function JsonTool() {
           <div className="flex min-h-0 w-full flex-col">
             <CodeArea
               value={state.text}
+              wrap={noWrap ? 'off' : undefined}
               onChange={(e) => setState((p) => ({ ...p, text: e.target.value }))}
               placeholder={
                 isTextMode ? 'Paste text or an escaped string…' : 'Paste JSON here…'

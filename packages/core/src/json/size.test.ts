@@ -1,44 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import fc from 'fast-check'
 import {
   assessJsonSize,
   JSON_LARGE_BYTES,
   JSON_REFUSE_BYTES,
   jsonSizeTier,
   outputHead,
-  utf8Length,
 } from './size.ts'
 
-const encoder = new TextEncoder()
-
-describe('utf8Length', () => {
-  it('counts ASCII as one byte per character', () => {
-    expect(utf8Length('')).toBe(0)
-    expect(utf8Length('{"a":1}')).toBe(7)
-  })
-
-  it('counts 2-, 3- and 4-byte sequences', () => {
-    expect(utf8Length('é')).toBe(2)
-    expect(utf8Length('中')).toBe(3)
-    expect(utf8Length('😀')).toBe(4)
-    expect(utf8Length('a😀é中b')).toBe(11)
-  })
-
-  it('counts a lone surrogate as the 3-byte replacement character', () => {
-    expect(utf8Length('\uD83D')).toBe(3)
-    expect(utf8Length('\uDE00')).toBe(3)
-    expect(utf8Length('a\uD83Db')).toBe(5)
-    expect(utf8Length('\uDE00\uD83D')).toBe(6)
-  })
-
-  it('agrees with TextEncoder on any string, lone surrogates included', () => {
-    fc.assert(
-      fc.property(fc.string({ unit: 'binary' }), (s) => {
-        expect(utf8Length(s)).toBe(encoder.encode(s).length)
-      }),
-    )
-  })
-})
 
 describe('jsonSizeTier', () => {
   it('is ok up to the large threshold, inclusive', () => {
@@ -49,7 +17,9 @@ describe('jsonSizeTier', () => {
   it('is large above it, and says what is switched off', () => {
     const v = jsonSizeTier(20 * 1024 * 1024)
     expect(v.tier).toBe('large')
-    expect(v.reason).toBe('Large input (20.0 MB): auto-fixes and embedded-JSON expansion are off.')
+    expect(v.reason).toBe(
+      'Large input (20.0 MB): auto-fixes and embedded-JSON expansion are off, and editing may feel slow. Past 50.0 MB nothing is parsed.',
+    )
     expect(jsonSizeTier(JSON_REFUSE_BYTES).tier).toBe('large')
   })
 
