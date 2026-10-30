@@ -1,11 +1,14 @@
-import { useDeferredValue, useMemo, useState } from 'react'
+import { lazy, Suspense, useDeferredValue, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import {
   AlertTriangle,
   ArrowUp,
   Braces,
   CheckCircle2,
+  ChevronsDownUp,
+  ChevronsUpDown,
   Download,
+  FileType,
   GitCompare,
   ListFilter,
   Wand2,
@@ -17,6 +20,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button, Segmented } from '@/components/ui/Button'
 import { CodeArea } from '@/components/ui/CodeArea'
 import { CopyButton } from '@/components/ui/CopyButton'
+import { IssueCard } from '@/components/ui/IssueCard'
 import { Select, Toggle } from '@/components/ui/Select'
 import { handOff } from '@/lib/persist/handoff'
 import { useToolState } from '@/lib/persist/useToolState'
@@ -32,7 +36,6 @@ import {
   assessJsonSize,
   outputHead,
   stripJsonc,
-  type JsonIssue,
   embeddedFields,
   expandEmbedded,
   findEmbeddedJson,
@@ -57,9 +60,17 @@ import {
   type Selection,
 } from '@fadeltd/devtools-core/json'
 import { hasLongLine } from '@fadeltd/devtools-core/text'
+import type { FoldApi } from './FoldableOutput'
+import { useNarrow } from './narrow'
 import { TreeView } from './TreeView'
 
+// CodeMirror stays out of this chunk: it loads the first time formatted output
+// is shown, with the plain textarea standing in until it arrives.
+const FoldableOutput = lazy(() => import('./FoldableOutput'))
+
 type Mode = 'format' | 'minify' | 'escape' | 'unescape'
+/** What the output pane is showing. */
+type OutputKind = 'unescape-error' | 'issues' | 'tree' | 'refused' | 'text'
 type View = 'text' | 'tree'
 
 const VIEWS = [
@@ -110,45 +121,6 @@ const DOWNLOAD_NAMES: Record<Mode, string> = {
   minify: 'minified.json',
   escape: 'escaped.txt',
   unescape: 'unescaped.txt',
-}
-
-function IssueCard({ issue }: { issue: JsonIssue }) {
-  const gutterWidth = String(
-    issue.snippet.lines[issue.snippet.lines.length - 1]?.number ?? 1,
-  ).length
-
-  return (
-    <div className="panel p-3">
-      <div className="flex items-start gap-2">
-        <AlertTriangle size={15} className="mt-px shrink-0 text-del" aria-hidden />
-        <div className="min-w-0">
-          <div className="text-[13px] font-medium text-fg">{issue.message}</div>
-          <div className="font-mono text-[11px] text-faint">
-            line {issue.line}, column {issue.column} · offset {issue.offset}
-          </div>
-        </div>
-      </div>
-
-      <pre className="mt-2 overflow-x-auto font-mono text-[12px] leading-normal text-muted scroll-thin">
-        {issue.snippet.lines.map((l) => (
-          <span key={l.number}>
-            <span className={l.number === issue.snippet.caretLine ? 'text-fg' : undefined}>
-              {String(l.number).padStart(gutterWidth, ' ')} │ {l.text}
-            </span>
-            {'\n'}
-            {l.number === issue.snippet.caretLine && (
-              <span className="text-del">
-                {' '.repeat(gutterWidth)} │ {' '.repeat(Math.max(0, issue.snippet.caretColumn - 1))}▲
-                {'\n'}
-              </span>
-            )}
-          </span>
-        ))}
-      </pre>
-
-      {issue.hint !== null && <p className="mt-1 text-[12px] text-muted">{issue.hint}</p>}
-    </div>
-  )
 }
 
 function FilterBar({
@@ -479,9 +451,69 @@ export default function JsonTool() {
     if (ok) void navigate('/diff')
   }
 
+  // JSON to Types reads JSON, JSONC or NDJSON of any size (in a worker), so
+  // anything this tool can show as JSON can go there. What goes is what the
+  // output shows: filtered, expanded and sorted as here.
+  const [typesHandOffFailed, setTypesHandOffFailed] = useState(false)
+
+  async function generateTypes(text: string) {
+    const ok = await handOff<{ text: string }>('json-types', { text })
+    setTypesHandOffFailed(!ok)
+    if (ok) void navigate('/json-types')
+  }
+
+  function generateTypesFromOutput() {
+    if (focused === undefined) return
+    // Past the inline limit the formatted text is too big to be useful as the
+    // target's input (its textarea holds it whole); the minified form carries
+    // the same document in a fraction of the size.
+    const text =
+      deferredMode === 'format' && outputCut !== null
+        ? minifyValue(focused.value, { sortKeys: false })
+        : output
+    void generateTypes(text)
+  }
+
   function applyToInput(next: string) {
     setState((p) => ({ ...p, text: next }))
   }
+
+  const outputKind: OutputKind =
+    unescapeError !== null
+      ? 'unescape-error'
+      : !isTextMode && !valid && analysis.issues.length > 0
+        ? 'issues'
+        : showTree && focused !== undefined
+          ? 'tree'
+          : refused
+            ? 'refused'
+            : 'text'
+  const showCut = outputKind === 'text' && outputCut !== null
+  const canGenerateTypes = !isTextMode && valid && focused !== undefined && output !== ''
+
+  // The folding editor: formatted text in the ok tier only. Large output keeps
+  // the textarea, which is faster on it; below md the textarea stays too, since
+  // a fold marker is one 18px line tall -- the Tree view, with 44px rows, is
+  // how to fold on a phone.
+  const narrow = useNarrow()
+  const foldable =
+    outputKind === 'text' &&
+    !isTextMode &&
+    deferredMode === 'format' &&
+    size.tier === 'ok' &&
+    outputCut === null &&
+    output !== '' &&
+    !narrow
+  const outputWraps = useMemo(() => !foldable || !hasLongLine(output), [foldable, output])
+  const [foldApi, setFoldApi] = useState<FoldApi | null>(null)
+
+  const textOutput = (
+    <CodeArea
+      value={outputShown}
+      readOnly
+      placeholder={selection?.ok === false ? 'Nothing at this path' : 'Output appears here'}
+    />
+  )
 
   useShortcuts([
     {
@@ -635,6 +667,17 @@ export default function JsonTool() {
                   <Wand2 size={14} aria-hidden />
                   Wrap as array
                 </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => void generateTypes(state.text)}
+                  title="Open these records in JSON to Types, which reads each line as one sample. Replaces what is in JSON to Types now."
+                >
+                  <FileType size={14} aria-hidden />
+                  Generate types
+                </Button>
+                {typesHandOffFailed && (
+                  <span className="text-[12px] text-del">Could not open JSON to Types.</span>
+                )}
               </div>
             )}
 
@@ -728,11 +771,11 @@ export default function JsonTool() {
               <FilterBar value={state.filter} selection={selection} onChange={setFilter} />
             )}
 
-            {unescapeError !== null ? (
+            {outputKind === 'unescape-error' ? (
               <div className="flex-1 overflow-auto p-3 font-mono text-[13px] text-del scroll-thin">
                 {unescapeError}
               </div>
-            ) : !isTextMode && !valid && analysis.issues.length > 0 ? (
+            ) : outputKind === 'issues' ? (
               <div className="flex-1 space-y-2 overflow-y-auto p-3 scroll-thin">
                 {analysis.issues.map((issue) => (
                   <IssueCard key={`${issue.offset}:${issue.length}:${issue.code}`} issue={issue} />
@@ -744,7 +787,7 @@ export default function JsonTool() {
                   </p>
                 )}
               </div>
-            ) : showTree && focused !== undefined ? (
+            ) : outputKind === 'tree' && focused !== undefined ? (
               <TreeView
                 // A new subtree opens with its own default expansion.
                 key={toJsonPointer(focused.path)}
@@ -752,25 +795,46 @@ export default function JsonTool() {
                 basePath={focused.path}
                 onFilter={(path: PathSegment[]) => setFilter(toJqPath(path))}
               />
-            ) : refused ? (
+            ) : outputKind === 'refused' ? (
               <div className="flex-1 p-3 text-[12px] text-muted">
                 Nothing is parsed at this size. The input stays in the editor on the left,
                 untouched.
               </div>
+            ) : foldable ? (
+              <Suspense fallback={textOutput}>
+                <FoldableOutput value={output} wrap={outputWraps} onReady={setFoldApi} />
+              </Suspense>
             ) : (
-              <>
-                <CodeArea
-                  value={outputShown}
-                  readOnly
-                  placeholder={selection?.ok === false ? 'Nothing at this path' : 'Output appears here'}
-                />
-                {outputCut !== null && (
-                  <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-border px-3 py-1.5 font-mono text-[11px] text-faint">
-                    <Badge title="The full text is not shown, to keep the page responsive">
-                      showing {formatCount(outputCut.head.length)} of{' '}
-                      {formatCount(output.length)} characters
-                    </Badge>
-                    <span className="flex-1" />
+              textOutput
+            )}
+
+            {(showCut || canGenerateTypes || foldApi !== null) && (
+              <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-t border-border px-3 py-1.5">
+                {showCut && outputCut !== null && (
+                  <Badge title="The full text is not shown, to keep the page responsive">
+                    showing {formatCount(outputCut.head.length)} of {formatCount(output.length)}{' '}
+                    characters
+                  </Badge>
+                )}
+                {foldApi !== null && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      onClick={foldApi.foldAll}
+                      title="Fold every object and array below the root"
+                    >
+                      <ChevronsDownUp size={14} aria-hidden />
+                      Fold all
+                    </Button>
+                    <Button variant="ghost" onClick={foldApi.unfoldAll}>
+                      <ChevronsUpDown size={14} aria-hidden />
+                      Unfold all
+                    </Button>
+                  </>
+                )}
+                <span className="flex-1" />
+                {showCut && (
+                  <>
                     <CopyButton value={output} />
                     <Button
                       onClick={() =>
@@ -787,9 +851,24 @@ export default function JsonTool() {
                       <Download size={14} aria-hidden />
                       Download
                     </Button>
-                  </div>
+                  </>
                 )}
-              </>
+                {canGenerateTypes && (
+                  <>
+                    {typesHandOffFailed && (
+                      <span className="text-[12px] text-del">Could not open JSON to Types.</span>
+                    )}
+                    <Button
+                      variant="ghost"
+                      onClick={generateTypesFromOutput}
+                      title="Open this output in JSON to Types for TypeScript, Zod or Go. Replaces what is in JSON to Types now."
+                    >
+                      <FileType size={14} aria-hidden />
+                      Generate types
+                    </Button>
+                  </>
+                )}
+              </div>
             )}
           </div>
         }

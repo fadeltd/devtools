@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { ChevronRight, ListFilter } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
@@ -18,10 +18,10 @@ import {
   toJsonPointer,
   toJqPath,
 } from '@fadeltd/devtools-core/json'
+import { useNarrow } from './narrow'
 
 // Matches the palette rows: a 44px touch target below md, the 22px code-table
 // grid from DESIGN.md above it.
-const NARROW = '(max-width: 47.99rem)'
 const ROW_NARROW = 44
 const ROW_WIDE = 22
 const INDENT = 14
@@ -34,19 +34,8 @@ const INDENT = 14
 const MAX_ROWS = 200_000
 const COUNT_LIMIT = 1_000_000
 
-function subscribeNarrow(onChange: () => void) {
-  const mq = window.matchMedia(NARROW)
-  mq.addEventListener('change', onChange)
-  return () => mq.removeEventListener('change', onChange)
-}
-
 function useRowHeight(): number {
-  const narrow = useSyncExternalStore(
-    subscribeNarrow,
-    () => window.matchMedia(NARROW).matches,
-    () => false,
-  )
-  return narrow ? ROW_NARROW : ROW_WIDE
+  return useNarrow() ? ROW_NARROW : ROW_WIDE
 }
 
 interface Expansion {
