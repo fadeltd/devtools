@@ -41,6 +41,7 @@ body:
         - QR Code
         - Lorem Ipsum
         - Regex Tester
+        - Markdown Preview
         - The site itself (⌘K palette, sidebar, shortcuts, saved state)
     validations:
       required: true

@@ -5,17 +5,18 @@ import { TwoPane } from '@/components/layout/TwoPane'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { CodeArea } from '@/components/ui/CodeArea'
-import { CopyButton } from '@/components/ui/CopyButton'
+import { CopyButton, RichCopyButton } from '@/components/ui/CopyButton'
 import { Select, Toggle } from '@/components/ui/Select'
 import { useToolState } from '@/lib/persist/useToolState'
 import { useShortcuts } from '@/lib/keys/useShortcuts'
 import { useToolUsageTracker } from '@/lib/prefs'
-import { copyText } from '@/lib/util/clipboard'
+import { copyRich, copyText } from '@/lib/util/clipboard'
 import { formatCount } from '@/lib/util/bytes'
 import { useWorkerJob, type JobStatus } from '@/lib/worker/useWorkerJob'
 import type { CsvIssue, Delimiter } from '@fadeltd/devtools-core/csv'
 import { CsvGrid } from './CsvGrid'
 import type { CsvApi, CsvFormat, CsvRunInput, CsvRunResult } from './csv.worker'
+import { RICH_CELL_LIMIT } from './limits'
 
 type DelimiterChoice = Delimiter | 'auto'
 
@@ -110,6 +111,9 @@ export default function CsvTool() {
   // in flight, so draw what the result holds, not what the control says.
   const shownFormat = result?.format ?? state.format
   const output = result?.output ?? ''
+  const rich = result?.rich ?? null
+  // Offered where the output is a table to look at or to paste as one.
+  const offersRich = state.format === 'table' || state.format === 'markdown'
   const current = job.status === 'done' && deferredText === state.text
 
   const inputRef = useRef<HTMLDivElement>(null)
@@ -136,7 +140,12 @@ export default function CsvTool() {
       scope: 'tool',
       whileTyping: true,
       run: () => {
-        if (output !== '') void copyText(output)
+        // The table view has no text output: what it copies is the table.
+        if (shownFormat === 'table') {
+          if (rich !== null) void copyRich(rich.html, rich.text)
+        } else if (output !== '') {
+          void copyText(output)
+        }
       },
     },
   ])
@@ -200,6 +209,17 @@ export default function CsvTool() {
               </option>
             ))}
           </Select>
+          {offersRich && (
+            <RichCopyButton
+              html={rich?.html ?? ''}
+              text={rich?.text ?? ''}
+              title={
+                rich === null && result !== undefined && result.rowCount * result.columns > RICH_CELL_LIMIT
+                  ? `Too large to copy as a table (over ${formatCount(RICH_CELL_LIMIT)} cells). Copy it as CSV or TSV instead`
+                  : undefined
+              }
+            />
+          )}
           {state.format !== 'table' && <CopyButton value={output} />}
           <Button variant="ghost" onClick={reset}>
             Clear

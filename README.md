@@ -36,6 +36,7 @@ It also does what the free sites usually don't: reports **every** JSON error wit
 
 - **[Diff Checker](https://devtools.fadeltd.dev/diff)** — side-by-side or unified, word-level highlights, ignore whitespace or case, compare as sorted lines or key-sorted JSON, unified patch, share by link
 - **[Regex Tester](https://devtools.fadeltd.dev/regex)** — JavaScript regex with every match, line and column, named and numbered groups, replace preview; runaway patterns can be cancelled
+- **[Markdown Preview](https://devtools.fadeltd.dev/markdown)** — GitHub-flavoured Markdown with a live preview; copy it as rich text and tables stay tables in Slack, Docs and Gmail
 - **[List Tools](https://devtools.fadeltd.dev/list)** — sort, natural sort, dedupe, shuffle, filter and 11 more steps chained into a shareable pipeline
 - **[Word Counter & Text Statistics](https://devtools.fadeltd.dev/text-stats)** — characters four ways, words, sentences, reading time, word frequency
 - **[Unicode Inspector](https://devtools.fadeltd.dev/unicode)** — finds zero-width, bidi (Trojan Source) and other invisible characters, one-click clean
