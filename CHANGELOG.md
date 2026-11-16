@@ -6,6 +6,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.17.0] — 2026-11-16
+
 ### Added
 - Markdown Preview: write or paste GitHub-flavoured Markdown beside a live preview. Copy formatted puts the rendered HTML and the Markdown source on the clipboard together, so a paste into Slack, Google Docs or Gmail keeps tables (with column alignment, escaped pipes, and links and `<br>` line breaks inside cells), lists, links and monospace code, where a plain copy arrives as pipes and dashes. Copy Markdown copies just the source. Raw HTML in the source is shown as text, never run; links are limited to `http`, `https`, `mailto` and `tel`; remote images are not loaded, since the site makes no network requests. Rendering runs in a background worker, and the preview of a very long document shows its start while the copy carries all of it. (#28)
 - CSV to Table: Copy formatted, in the Table and Markdown views, copies the data as a real table (rich text, with TSV as the plain-text half), so it pastes into Slack, Docs, Gmail and spreadsheets as a table. Number columns are right-aligned and line breaks inside cells are kept. Offered up to 10,000 cells.
