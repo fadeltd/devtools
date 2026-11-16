@@ -1,3 +1,5 @@
+import { toHtml } from '../markdown/html.ts'
+import type { MdInline } from '../markdown/types.ts'
 import type { ColumnType } from './infer.ts'
 import type { Delimiter } from './parse.ts'
 
@@ -126,6 +128,37 @@ export function toMarkdown(table: TableData, types: readonly ColumnType[] = []):
     .join(' | ')} |`
 
   return [line(head), rule, ...body.map(line)].join('\n') + '\n'
+}
+
+function htmlCell(value: string): MdInline[] {
+  const out: MdInline[] = []
+  value.split(/\r\n|\r|\n/).forEach((line, i) => {
+    if (i > 0) out.push({ type: 'br' })
+    if (line !== '') out.push({ type: 'text', value: line })
+  })
+  return out
+}
+
+/**
+ * An HTML `<table>` for the clipboard: pasted as rich text it stays a table in
+ * Slack, Google Docs and Gmail, where the Markdown form arrives as pipes and
+ * dashes. Cells are escaped, a line break inside a cell becomes `<br>`, and
+ * number columns are right-aligned when `types` is given. With the header off
+ * there is no header row, since HTML does not require one.
+ */
+export function toHtmlTable(table: TableData, types: readonly ColumnType[] = []): string {
+  const columns = Math.max(table.header?.length ?? 0, ...table.rows.slice(0, 1).map((r) => r.length))
+  if (columns === 0) return ''
+  return toHtml({
+    blocks: [
+      {
+        type: 'table',
+        align: Array.from({ length: columns }, (_, c) => (types[c] === 'number' ? 'right' : null)),
+        header: (table.header ?? []).map(htmlCell),
+        rows: table.rows.map((r) => r.map(htmlCell)),
+      },
+    ],
+  })
 }
 
 /** One entry point for the text outputs. */

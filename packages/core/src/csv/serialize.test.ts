@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { inferColumnTypes, valueType } from './infer.ts'
-import { formatTable, jsonKeys, quoteField, toDelimited, toJson, toMarkdown } from './serialize.ts'
+import { formatTable, jsonKeys, quoteField, toDelimited, toHtmlTable, toJson, toMarkdown } from './serialize.ts'
 
 describe('quoteField', () => {
   it('quotes only when needed', () => {
@@ -106,6 +106,54 @@ describe('toMarkdown', () => {
 
   it('is empty for an empty table', () => {
     expect(toMarkdown({ header: null, rows: [] })).toBe('')
+  })
+})
+
+describe('toHtmlTable', () => {
+  const CELL = 'border:1px solid #d0d7de;padding:4px 8px'
+
+  it('writes a header row and a body', () => {
+    expect(toHtmlTable({ header: ['a', 'b'], rows: [['1', '2']] })).toBe(
+      '<table style="border-collapse:collapse">' +
+        `<thead><tr><th style="${CELL};font-weight:600">a</th><th style="${CELL};font-weight:600">b</th></tr></thead>` +
+        `<tbody><tr><td style="${CELL}">1</td><td style="${CELL}">2</td></tr></tbody>` +
+        '</table>',
+    )
+  })
+
+  it('has no header row when the header is off', () => {
+    const html = toHtmlTable({ header: null, rows: [['1', '2']] })
+    expect(html).not.toContain('<thead>')
+    expect(html).toContain(`<tbody><tr><td style="${CELL}">1</td>`)
+  })
+
+  it('escapes cells, so pasted HTML stays text', () => {
+    const html = toHtmlTable({ header: ['<b>h</b>'], rows: [['<script>alert(1)</script>'], ['a & "b"']] })
+    expect(html).toContain('&lt;b&gt;h&lt;/b&gt;')
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;')
+    expect(html).toContain('a &amp; &quot;b&quot;')
+    expect(html).not.toContain('<script>')
+  })
+
+  it('keeps a pipe as it is and turns a line break into <br>', () => {
+    const html = toHtmlTable({ header: ['h'], rows: [['x|y'], ['line1\r\nline2\nline3']] })
+    expect(html).toContain('>x|y</td>')
+    expect(html).toContain('>line1<br>line2<br>line3</td>')
+  })
+
+  it('right-aligns number columns', () => {
+    const html = toHtmlTable({ header: ['name', 'n'], rows: [['ann', '7']] }, ['text', 'number'])
+    expect(html).toContain(`<td style="${CELL}">ann</td><td style="${CELL};text-align:right">7</td>`)
+    expect(html).toContain(`<th style="${CELL};font-weight:600;text-align:right">n</th>`)
+  })
+
+  it('fills a short row so every row has the same cells', () => {
+    const html = toHtmlTable({ header: ['a', 'b'], rows: [['1']] })
+    expect(html).toContain(`<td style="${CELL}">1</td><td style="${CELL}"></td>`)
+  })
+
+  it('is empty for an empty table', () => {
+    expect(toHtmlTable({ header: null, rows: [] })).toBe('')
   })
 })
 

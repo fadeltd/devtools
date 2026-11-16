@@ -3,6 +3,8 @@ import {
   formatTable,
   inferColumnTypes,
   parseCsv,
+  toDelimited,
+  toHtmlTable,
   type ColumnType,
   type CsvIssue,
   type CsvOutputFormat,
@@ -10,7 +12,15 @@ import {
   type Delimiter,
 } from '@fadeltd/devtools-core/csv'
 
+import { RICH_CELL_LIMIT } from './limits'
+
 export type CsvFormat = 'table' | CsvOutputFormat
+
+/** The two halves of a rich copy: an HTML table, and TSV for plain-text targets. */
+export interface RichTable {
+  html: string
+  text: string
+}
 
 export interface CsvRunInput {
   text: string
@@ -42,12 +52,28 @@ export interface CsvRunResult {
   offsets: Uint32Array
   /** Every format except the table. */
   output: string
+  /**
+   * Table and Markdown views only, and only up to `RICH_CELL_LIMIT` cells:
+   * built here so it is ready when the click arrives, since the clipboard
+   * write has to happen inside the click.
+   */
+  rich: RichTable | null
 }
 
-let cache: { text: string; delimiter: CsvRunInput['delimiter']; header: boolean; table: CsvTable; types: ColumnType[] } | undefined
+interface Parsed {
+  text: string
+  delimiter: CsvRunInput['delimiter']
+  header: boolean
+  table: CsvTable
+  types: ColumnType[]
+  /** Built on first use; `null` once it is known to be too large or empty. */
+  rich?: RichTable | null
+}
+
+let cache: Parsed | undefined
 
 /** Switching output format should not re-parse 10 MB, so keep the last parse. */
-function parse(input: CsvRunInput) {
+function parse(input: CsvRunInput): Parsed {
   if (
     cache !== undefined &&
     cache.delimiter === input.delimiter &&
@@ -60,6 +86,19 @@ function parse(input: CsvRunInput) {
   const types = inferColumnTypes(table.rows, table.columns)
   cache = { text: input.text, delimiter: input.delimiter, header: input.header, table, types }
   return cache
+}
+
+function richTable(parsed: Parsed): RichTable | null {
+  if (parsed.rich !== undefined) return parsed.rich
+  const { table, types } = parsed
+  const cells = (table.rows.length + (table.header === null ? 0 : 1)) * table.columns
+  let rich: RichTable | null = null
+  if (cells > 0 && cells <= RICH_CELL_LIMIT) {
+    const html = toHtmlTable(table, types)
+    if (html !== '') rich = { html, text: toDelimited(table, '\t') }
+  }
+  parsed.rich = rich
+  return rich
 }
 
 function pack(table: CsvTable): { cells: string; offsets: Uint32Array } {
@@ -86,7 +125,8 @@ function pack(table: CsvTable): { cells: string; offsets: Uint32Array } {
  */
 const api = {
   run(input: CsvRunInput): CsvRunResult {
-    const { table, types } = parse(input)
+    const parsed = parse(input)
+    const { table, types } = parsed
     const packed =
       input.format === 'table' ? pack(table) : { cells: '', offsets: new Uint32Array(0) }
     const result: CsvRunResult = {
@@ -104,6 +144,7 @@ const api = {
       cells: packed.cells,
       offsets: packed.offsets,
       output: input.format === 'table' ? '' : formatTable(table, input.format, types),
+      rich: input.format === 'table' || input.format === 'markdown' ? richTable(parsed) : null,
     }
     return transfer(result, [packed.offsets.buffer])
   },

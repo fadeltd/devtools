@@ -1,7 +1,7 @@
 {
   "name": "@fadeltd/devtools-core",
   "version": "0.8.0",
-  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, JSON to TypeScript, Zod and Go types, diff, base64, IDs and UUIDs, timestamps, JWT decoding and verification, URL encoding, hashes and HMAC, slugs, text bytes, number bases, Unicode inspection, YAML/JSON/TOML, SQL and CSS formatting, CSV, .env, cron, string escaping, colors and contrast, QR codes and lorem ipsum. Pure functions, no DOM, no network.",
+  "description": "The engines behind devtools.fadeltd.dev: list pipelines, JSON errors and fixes, JSON to TypeScript, Zod and Go types, diff, base64, IDs and UUIDs, timestamps, JWT decoding and verification, URL encoding, hashes and HMAC, slugs, text bytes, number bases, Unicode inspection, YAML/JSON/TOML, SQL and CSS formatting, CSV, .env, cron, string escaping, colors and contrast, QR codes, lorem ipsum and Markdown to HTML. Pure functions, no DOM, no network.",
   "license": "MIT",
   "type": "module",
   "sideEffects": false,
@@ -69,6 +69,10 @@
     "./lorem": {
       "types": "./dist/lorem/index.d.ts",
       "default": "./dist/lorem/index.js"
+    },
+    "./markdown": {
+      "types": "./dist/markdown/index.d.ts",
+      "default": "./dist/markdown/index.js"
     },
     "./number": {
       "types": "./dist/number/index.d.ts",
@@ -151,6 +155,7 @@
     "cronstrue": "3.32.0",
     "diff": "9.0.0",
     "jsonc-parser": "3.3.1",
+    "marked": "18.1.2",
     "smol-toml": "1.9.1",
     "uqr": "0.1.3",
     "yaml": "2.9.1"
@@ -218,7 +223,9 @@
     "oklch",
     "wcag contrast",
     "qr code",
-    "lorem ipsum"
+    "lorem ipsum",
+    "markdown",
+    "markdown to html"
   ],
   "publishConfig": {
     "access": "public"

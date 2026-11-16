@@ -6,7 +6,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- `/markdown`: `parseMarkdown(src)` turns GitHub-flavoured Markdown into a plain-data tree (`MdDoc`) that survives `structuredClone`, never throwing. Raw HTML comes back as the text it is, except `<br>`; character references are decoded once; link and image destinations pass `safeHref` / `safeImageSrc` or the node degrades to its text. `toHtml(doc)` serialises a tree to escaped HTML with a fixed tag set and the inline styles a rich-text paste needs (table borders, column alignment, monospace code). `limitDoc(doc, budget)` cuts a tree to a node budget for renderers that build real DOM, inside a long list or table if need be. Adds `marked` as a dependency, for its tokenizer only.
+- `/csv`: `toHtmlTable(table, types)` writes an HTML `<table>` for the clipboard, with cells escaped, line breaks as `<br>` and number columns right-aligned.
 
 ## [0.8.0] — 2026-10-30
 
