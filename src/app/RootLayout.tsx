@@ -94,6 +94,19 @@ export default function RootLayout() {
           </span>
         </Link>
 
+        {/* Says which build is on screen, which is the first question when
+            something new is missing: the service worker keeps serving the
+            previous version until the next reload after a deploy. */}
+        <a
+          href={`https://github.com/fadeltd/devtools/releases/tag/v${import.meta.env.APP_VERSION}`}
+          target="_blank"
+          rel="noreferrer noopener"
+          title={`Release notes for v${import.meta.env.APP_VERSION}`}
+          className="hidden min-h-11 items-center rounded-[4px] px-1 font-mono text-[11px] text-faint hover:text-fg sm:inline-flex md:min-h-0"
+        >
+          v{import.meta.env.APP_VERSION}
+        </a>
+
         {/* States the product thesis where it is always visible. It is also
             literally true: there is no backend to send anything to. */}
         <span

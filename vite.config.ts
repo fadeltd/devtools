@@ -1,10 +1,18 @@
+import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+// Release bumps this on the release commit, which is the commit Deploy builds,
+// so the deployed site's version always names a real tag.
+const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as {
+  version: string
+}
+
 export default defineConfig({
+  define: { 'import.meta.env.APP_VERSION': JSON.stringify(version) },
   plugins: [
     react(),
     tailwindcss(),

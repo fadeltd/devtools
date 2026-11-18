@@ -164,8 +164,8 @@ jobs:
               fi
 
               case "$TAG" in
-                core-v*) FILE=packages/core/CHANGELOG.md; TITLE="@fadeltd/devtools-core ${TAG#core-v}" ;;
-                *)       FILE=CHANGELOG.md;               TITLE="$TAG" ;;
+                core-v*) FILE=packages/core/CHANGELOG.md; TITLE="@fadeltd/devtools-core ${TAG#core-v}"; SITE=() ;;
+                *)       FILE=CHANGELOG.md;               TITLE="$TAG"; SITE=(https://devtools.fadeltd.dev) ;;
               esac
               if ! gh release view "$TAG" > /dev/null 2>&1; then
                 # Notes come from the changelog as it was at that release
@@ -173,7 +173,9 @@ jobs:
                 # expressions are pasted into the script before bash parses
                 # it, so a backtick in the notes would run as a command.
                 git show "${SHA}:${FILE}" > "$RUNNER_TEMP/changelog.md"
-                pnpm exec vite-node scripts/release-notes.ts "$RUNNER_TEMP/changelog.md" "${TAG#*v}" > "$RUNNER_TEMP/notes.md"
+                # The notes are written to a file by the script itself, not
+                # redirected from stdout: pnpm prints its dependency check there.
+                pnpm exec vite-node scripts/release-notes.ts "$RUNNER_TEMP/changelog.md" "${TAG#*v}" "$RUNNER_TEMP/notes.md" "${SITE[@]}"
                 gh release create "$TAG" --verify-tag --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md"
               fi
               case "$TAG" in v*) DEPLOY_TAG=$TAG ;; esac
