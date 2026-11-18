@@ -6,7 +6,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- The header shows the site's version next to its name, linking to that version's release notes, so it is easy to tell whether a reload is still needed to pick up a new release.
 
 ## [0.17.0] — 2026-11-16
 
